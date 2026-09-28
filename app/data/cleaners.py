@@ -1,0 +1,1 @@
+# Cleans data after reading it.

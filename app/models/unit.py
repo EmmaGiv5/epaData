@@ -1,0 +1,1 @@
+# Represents generating units belonging to a facility.

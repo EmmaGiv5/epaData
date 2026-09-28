@@ -1,0 +1,7 @@
+# Tells Git what NOT to upload to Github
+.env
+instance/
+uploads/
+__pycache__/
+*.pyc
+.pytest_cache/

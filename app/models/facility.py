@@ -1,0 +1,1 @@
+# Represents the facilities table.

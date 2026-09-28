@@ -1,0 +1,1 @@
+# It represents yearly operating/emissions data for a particular facility/unit.

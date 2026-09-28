@@ -1,0 +1,10 @@
+# Flask
+# Flask-SQLAlchemy
+# Flask-Migrate
+# pandas
+# openpyxl
+# requests
+# python-dotenv
+# pytest
+
+# pip install -r requirements.txt
