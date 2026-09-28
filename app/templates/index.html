@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}
+Home | epaData
+{% endblock %}
+
+
+{% block content %}
+
+<section class="hero">
+
+    <h1>epaData</h1>
+
+    <h2>
+        EPA Data Management, Evaluation,
+        and Visualization System
+    </h2>
+
+    <p>
+        A database-driven web application for
+        managing, searching, analyzing, and
+        visualizing environmental and
+        power-sector data.
+    </p>
+
+</section>
+
+
+<section class="project-info">
+
+    <h2>Project Overview</h2>
+
+    <p>
+        epaData is designed to collect, store,
+        manage, search, evaluate, and visualize
+        environmental and power-sector data
+        obtained from the U.S. Environmental
+        Protection Agency.
+    </p>
+
+    <p>
+        The system uses Flask for the web
+        application and SQLite for the database.
+    </p>
+
+</section>
+
+
+<section class="features">
+
+    <h2>System Functions</h2>
+
+    <div class="feature-grid">
+
+        <div class="feature-card">
+            <h3>EPA Data Retrieval</h3>
+            <p>
+                Retrieve or import data from EPA
+                sources such as CAMPD.
+            </p>
+        </div>
+
+
+        <div class="feature-card">
+            <h3>Data Upload</h3>
+            <p>
+                Upload CSV and Excel files and
+                validate their contents.
+            </p>
+        </div>
+
+
+        <div class="feature-card">
+            <h3>Data Explorer</h3>
+            <p>
+                Search, filter, sort, and explore
+                environmental data.
+            </p>
+        </div>
+
+
+        <div class="feature-card">
+            <h3>Data Download</h3>
+            <p>
+                Download datasets and search results
+                as CSV files.
+            </p>
+        </div>
+
+    </div>
+
+</section>
+
+{% endblock %}

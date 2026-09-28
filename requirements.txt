@@ -1,10 +1,8 @@
-# Flask
-# Flask-SQLAlchemy
-# Flask-Migrate
-# pandas
-# openpyxl
-# requests
-# python-dotenv
-# pytest
-
-# pip install -r requirements.txt
+Flask==3.1.2 # web application 
+Flask-SQLAlchemy==3.1.1 # databae 
+Flask-Migrate==4.1.0 # database migrations
+python-dotenv==1.1.1 # .env configuration
+pandas==2.3.2 # CSV/Excel processing
+openpyxl==3.1.5 # Excel files
+requests==2.32.5 # EPA API requests
+pytest==8.4.2 # testing

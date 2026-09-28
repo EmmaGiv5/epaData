@@ -1,1 +1,76 @@
 <!-- common layer on each page -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>{% block title %}epaData{% endblock %}</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}"
+    >
+</head>
+
+<body>
+
+    <header>
+        <nav class="navbar">
+
+            <div class="nav-container">
+
+                <a href="{{ url_for('main.home') }}" class="logo">
+                    epaData
+                </a>
+
+                <div class="nav-links">
+                    <a href="{{ url_for('main.home') }}">
+                        Home
+                    </a>
+
+                    <a href="#"> <!-- temporary placeholders -->
+                        EPA Retrieval
+                    </a>
+
+                    <a href="#">
+                        Upload
+                    </a>
+
+                    <a href="#">
+                        Data Explorer
+                    </a>
+
+                    <a href="#">
+                        Download
+                    </a>
+                </div>
+
+            </div>
+
+        </nav>
+    </header>
+
+
+    <main class="container">
+
+        {% block content %}
+        {% endblock %}
+
+    </main>
+
+
+    <footer>
+        <p>
+            epaData — EPA Data Management, Evaluation,
+            and Visualization System
+        </p>
+    </footer>
+
+</body>
+</html>

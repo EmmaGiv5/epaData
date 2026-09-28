@@ -1,7 +1,33 @@
 # Tells Git what NOT to upload to Github
+# Environment variables
 .env
-instance/
-uploads/
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Flask
+instance/
+
+# Uploaded files
+uploads/
+
+# Generated exports
+data/exports/
+
+# Testing
 .pytest_cache/
+.coverage
+
+# IDE files
+.vscode/
+.idea/
+
+# Operating system files
+.DS_Store
+Thumbs.db
