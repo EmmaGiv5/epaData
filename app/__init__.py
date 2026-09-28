@@ -9,11 +9,11 @@ from flask_migrate import Migrate
 from .config import Config
 
 
-db = SQLAlchemy() # connect to our models to SQLite 
+db = SQLAlchemy()
 migrate = Migrate()
 
 
-def create_app(): # creates the Flask application
+def create_app():
     app = Flask(__name__)
 
     # Load configuration
@@ -24,6 +24,16 @@ def create_app(): # creates the Flask application
 
     # Initialize migrations
     migrate.init_app(app, db)
+
+    # Import models
+    from .models import (
+        Dataset,
+        Facility,
+        Unit,
+        AnnualRecord,
+        UploadedFile,
+        DataProvenance
+    )
 
     # Register routes
     from .routes.main import main_bp
