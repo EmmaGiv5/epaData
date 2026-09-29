@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}
+Import Successful | epaData
+{% endblock %}
+
+
+{% block content %}
+
+<section class="page-header">
+
+    <h1>Import Successful</h1>
+
+    <p>
+        The dataset has been successfully imported
+        into the epaData database.
+    </p>
+
+</section>
+
+
+<section class="message success">
+
+    <h2>Database Import Complete</h2>
+
+    <p>
+        <strong>Dataset:</strong>
+        {{ dataset.dataset_name }}
+    </p>
+
+    <p>
+        <strong>Records imported:</strong>
+        {{ accepted_count }}
+    </p>
+
+    <p>
+        <strong>Reporting year:</strong>
+        {{ dataset.reporting_year }}
+    </p>
+
+</section>
+
+
+<a
+    href="{{ url_for('main.upload') }}"
+    class="button"
+>
+    Upload Another File
+</a>
+
+{% endblock %}

@@ -33,11 +33,6 @@ class Facility(db.Model):
         index=True
     )
 
-    county = db.Column(
-        db.String(100),
-        nullable=True
-    )
-
     latitude = db.Column(
         db.Float,
         nullable=True
