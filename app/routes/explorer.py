@@ -211,22 +211,6 @@ def explorer():
         max_heat_input
     )
 
-
-    # -----------------------------
-    # Get results
-    # -----------------------------
-
-    records = (
-        query
-        .order_by(
-            AnnualRecord.reporting_year.desc(),
-            Facility.facility_name,
-            Unit.epa_unit_id
-        )
-        .all()
-    )
-
-
     # -----------------------------
     # Filter dropdown values
     # -----------------------------
@@ -309,6 +293,26 @@ def explorer():
 
     controls = sorted(controls)
 
+    # Pagination
+    page = request.args.get("page", 1, type=int)
+    per_page = 25
+
+    pagination = (
+        query
+        .order_by(
+         AnnualRecord.reporting_year.desc(),
+            Facility.facility_name,
+         Unit.epa_unit_id
+        )
+        .paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+    )
+
+    records = pagination.items
+
 
     # -----------------------------
     # Render page
@@ -318,6 +322,7 @@ def explorer():
         "explorer.html",
 
         records=records,
+        pagination=pagination,
 
         years=years,
         states=states,

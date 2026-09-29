@@ -327,65 +327,21 @@
 
         <tr>
 
-            <td>
-                {{ record.reporting_year }}
-            </td>
-
-            <td>
-                {{ record.unit.facility.state }}
-            </td>
-
-            <td>
-                {{ record.unit.facility.facility_name }}
-            </td>
-
-            <td>
-                {{ record.unit.facility.epa_facility_id }}
-            </td>
-
-            <td>
-                {{ record.unit.epa_unit_id }}
-            </td>
-
-            <td>
-                {{ record.unit.unit_type }}
-            </td>
-
-            <td>
-                {{ record.unit.primary_fuel }}
-            </td>
-
-            <td>
-                {{ record.gross_load }}
-            </td>
-
-            <td>
-                {{ record.co2_mass }}
-            </td>
-
-            <td>
-                {{ record.so2_mass }}
-            </td>
-
-            <td>
-                {{ record.nox_mass }}
-            </td>
-
-            <td>
-                {{ record.heat_input }}
-            </td>
-
-            <td>
-                {{ record.so2_control }}
-            </td>
-
-            <td>
-                {{ record.nox_control }}
-            </td>
-
-            <td>
-                {{ record.pm_control }}
-            </td>
+            <td>{{ record.reporting_year }}</td>
+            <td>{{ record.unit.facility.state }}</td>
+            <td>{{ record.unit.facility.facility_name }}</td>
+            <td>{{ record.unit.facility.epa_facility_id }}</td>
+            <td>{{ record.unit.epa_unit_id }}</td>
+            <td>{{ record.unit.unit_type }}</td>
+            <td>{{ record.unit.primary_fuel }}</td>
+            <td>{{ record.gross_load }}</td>
+            <td>{{ record.co2_mass }}</td>
+            <td>{{ record.so2_mass }}</td>
+            <td>{{ record.nox_mass }}</td>
+            <td>{{ record.heat_input }}</td>
+            <td>{{ record.so2_control }}</td>
+            <td>{{ record.nox_control }}</td>
+            <td>{{ record.pm_control }}</td>
 
         </tr>
 
@@ -400,6 +356,67 @@
 <p>
     No records match the selected filters.
 </p>
+
+{% endif %}
+
+
+{% if pagination.pages > 1 %}
+
+<hr>
+
+<div>
+
+    {% if pagination.has_prev %}
+    <a href="{{ url_for(
+        'explorer.explorer',
+        facility=selected_facility,
+        state=selected_state,
+        unit=selected_unit,
+        fuel=selected_fuel,
+        year=selected_year,
+        control=selected_control,
+        min_co2=min_co2,
+        max_co2=max_co2,
+        min_nox=min_nox,
+        max_nox=max_nox,
+        min_so2=min_so2,
+        max_so2=max_so2,
+        page=pagination.prev_num
+    ) }}">
+        Previous
+    </a>
+    {% endif %}
+
+    &nbsp;
+
+    <strong>
+        Page {{ pagination.page }} of {{ pagination.pages }}
+    </strong>
+
+    &nbsp;
+
+    {% if pagination.has_next %}
+    <a href="{{ url_for(
+        'explorer.explorer',
+        facility=selected_facility,
+        state=selected_state,
+        unit=selected_unit,
+        fuel=selected_fuel,
+        year=selected_year,
+        control=selected_control,
+        min_co2=min_co2,
+        max_co2=max_co2,
+        min_nox=min_nox,
+        max_nox=max_nox,
+        min_so2=min_so2,
+        max_so2=max_so2,
+        page=pagination.next_num
+    ) }}">
+        Next
+    </a>
+    {% endif %}
+
+</div>
 
 {% endif %}
 
