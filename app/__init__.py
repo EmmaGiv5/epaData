@@ -37,7 +37,13 @@ def create_app():
     migrate.init_app(app, db)
 
     from .routes.main import main_bp
+    from .routes.explorer import explorer_bp
 
     app.register_blueprint(main_bp)
+    app.register_blueprint(explorer_bp)
 
+    print("Register routes")
+    for rule in app.url_map.iter_rules():
+        print(rule, "->", rule.endpoint)
+        print("========\n")
     return app

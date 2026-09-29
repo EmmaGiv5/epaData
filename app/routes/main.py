@@ -360,3 +360,63 @@ def import_dataframe(dataframe, original_filename):
     db.session.commit()
 
     return imported_count
+
+@main_bp.route("/data")
+def data_explorer():
+    records = (
+        db.session.query(
+            AnnualRecord,
+            Unit,
+            Facility
+        )
+        .join(
+            Unit,
+            AnnualRecord.unit_id == Unit.id
+        )
+        .join(
+            Facility,
+            Unit.facility_id == Facility.id
+        )
+        .order_by(
+            AnnualRecord.reporting_year.desc(),
+            Facility.facility_name,
+            Unit.epa_unit_id
+        )
+        .all()
+    )
+
+    states = (
+        db.session.query(Facility.state)
+        .distinct()
+        .order_by(Facility.state)
+        .all()
+    )
+
+    facilities = (
+        db.session.query(
+            Facility.id,
+            Facility.facility_name
+        )
+        .distinct()
+        .order_by(Facility.facility_name)
+        .all()
+    )
+
+    years = (
+        db.session.query(
+            AnnualRecord.reporting_year
+        )
+        .distinct()
+        .order_by(
+            AnnualRecord.reporting_year.desc()
+        )
+        .all()
+    )
+
+    return render_template(
+        "data_explorer.html",
+        records=records,
+        states=[row[0] for row in states if row[0]],
+        facilities=facilities,
+        years=[row[0] for row in years if row[0]],
+    )

@@ -25,30 +25,21 @@
 
             <div class="nav-container">
 
-                <a href="{{ url_for('main.home') }}" class="logo">
-                    epaData
+                <a href="{{ url_for('main.home') }}">
+                    Home
                 </a>
 
-                <div class="nav-links">
-                    <a href="{{ url_for('main.home') }}">
-                        Home
-                    </a>
+                <a href="{{ url_for('main.upload') }}">
+                    EPA Retrieval Upload
+                </a>
 
-                    <a href="#"> <!-- temporary placeholders -->
-                        EPA Retrieval
-                    </a>
+                <a href="{{ url_for('explorer.explorer') }}">
+                    Data Explorer
+                </a>
 
-                    <a href= "{{ url_for('main.upload') }}">
-                        Upload
-                    </a>
-
-                    <a href="#">
-                        Data Explorer
-                    </a>
-
-                    <a href="#">
-                        Download
-                    </a>
+                <a href="#">
+                    Download
+                </a>
                 </div>
 
             </div>

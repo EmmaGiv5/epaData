@@ -1,0 +1,406 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Data Explorer</h1>
+
+<p>
+    Search and filter environmental records using facility,
+    location, unit, fuel, year, control technology, and
+    numeric ranges.
+</p>
+
+<form method="GET" action="{{ url_for('explorer.explorer') }}">
+
+    <h2>Filters</h2>
+
+    <!-- Facility Search -->
+
+    <h3>Facility Search</h3>
+
+    <label for="facility">
+        Facility Name:
+    </label>
+
+    <input
+        type="text"
+        id="facility"
+        name="facility"
+        value="{{ selected_facility }}"
+        placeholder="Search facility name"
+    >
+
+
+    <!-- State -->
+
+    <h3>State</h3>
+
+    <select name="state" id="state">
+
+        <option value="">
+            All States
+        </option>
+
+        {% for state in states %}
+
+        <option
+            value="{{ state }}"
+            {% if selected_state == state %}selected{% endif %}
+        >
+            {{ state }}
+        </option>
+
+        {% endfor %}
+
+    </select>
+
+
+    <!-- Unit -->
+
+    <h3>Unit</h3>
+
+    <label for="unit">
+        Unit ID:
+    </label>
+
+    <input
+        type="text"
+        id="unit"
+        name="unit"
+        value="{{ selected_unit }}"
+        placeholder="Search unit ID"
+    >
+
+
+    <!-- Fuel -->
+
+    <h3>Fuel</h3>
+
+    <select name="fuel" id="fuel">
+
+        <option value="">
+            All Fuels
+        </option>
+
+        {% for fuel_option in fuels %}
+
+        <option
+            value="{{ fuel_option }}"
+            {% if selected_fuel == fuel_option %}selected{% endif %}
+        >
+            {{ fuel_option }}
+        </option>
+
+        {% endfor %}
+
+    </select>
+
+
+    <!-- Year -->
+
+    <h3>Year</h3>
+
+    <select name="year" id="year">
+
+        <option value="">
+            All Years
+        </option>
+
+        {% for year_option in years %}
+
+        <option
+            value="{{ year_option }}"
+            {% if selected_year == year_option|string %}selected{% endif %}
+        >
+            {{ year_option }}
+        </option>
+
+        {% endfor %}
+
+    </select>
+
+
+    <!-- Control Technology -->
+
+    <h3>Control Technology</h3>
+
+    <select name="control" id="control">
+
+        <option value="">
+            All Control Technologies
+        </option>
+
+        {% for control_option in controls %}
+
+        <option
+            value="{{ control_option }}"
+            {% if selected_control == control_option %}selected{% endif %}
+        >
+            {{ control_option }}
+        </option>
+
+        {% endfor %}
+
+    </select>
+
+
+    <!-- Numeric Ranges -->
+
+    <h3>Numeric Ranges</h3>
+
+    <table>
+
+        <tr>
+            <th>Measure</th>
+            <th>Minimum</th>
+            <th>Maximum</th>
+        </tr>
+
+        <tr>
+            <td>Gross Load</td>
+
+            <td>
+                <input
+                    type="number"
+                    step="any"
+                    name="min_gross_load"
+                    value="{{ min_gross_load }}"
+                >
+            </td>
+
+            <td>
+                <input
+                    type="number"
+                    step="any"
+                    name="max_gross_load"
+                    value="{{ max_gross_load }}"
+                >
+            </td>
+        </tr>
+
+        <tr>
+            <td>CO2 Mass</td>
+
+            <td>
+                <input
+                    type="number"
+                    step="any"
+                    name="min_co2"
+                    value="{{ min_co2 }}"
+                >
+            </td>
+
+            <td>
+                <input
+                    type="number"
+                    step="any"
+                    name="max_co2"
+                    value="{{ max_co2 }}"
+                >
+            </td>
+        </tr>
+
+        <tr>
+            <td>SO2 Mass</td>
+
+            <td>
+                <input
+                    type="number"
+                    step="any"
+                    name="min_so2"
+                    value="{{ min_so2 }}"
+                >
+            </td>
+
+            <td>
+                <input
+                    type="number"
+                    step="any"
+                    name="max_so2"
+                    value="{{ max_so2 }}"
+                >
+            </td>
+        </tr>
+
+        <tr>
+            <td>NOx Mass</td>
+
+            <td>
+                <input
+                    type="number"
+                    step="any"
+                    name="min_nox"
+                    value="{{ min_nox }}"
+                >
+            </td>
+
+            <td>
+                <input
+                    type="number"
+                    step="any"
+                    name="max_nox"
+                    value="{{ max_nox }}"
+                >
+            </td>
+        </tr>
+
+        <tr>
+            <td>Heat Input</td>
+
+            <td>
+                <input
+                    type="number"
+                    step="any"
+                    name="min_heat_input"
+                    value="{{ min_heat_input }}"
+                >
+            </td>
+
+            <td>
+                <input
+                    type="number"
+                    step="any"
+                    name="max_heat_input"
+                    value="{{ max_heat_input }}"
+                >
+            </td>
+        </tr>
+
+    </table>
+
+
+    <br>
+
+    <button type="submit">
+        Apply Filters
+    </button>
+
+    <a href="{{ url_for('explorer.explorer') }}">
+        Clear Filters
+    </a>
+
+</form>
+
+
+<hr>
+
+
+<!-- Results -->
+
+<h2>Results</h2>
+
+<p>
+    Records found:
+    <strong>{{ records|length }}</strong>
+</p>
+
+
+{% if records %}
+
+<table border="1" cellpadding="5" cellspacing="0">
+
+    <thead>
+
+        <tr>
+            <th>Year</th>
+            <th>State</th>
+            <th>Facility</th>
+            <th>Facility ID</th>
+            <th>Unit ID</th>
+            <th>Unit Type</th>
+            <th>Primary Fuel</th>
+            <th>Gross Load</th>
+            <th>CO2 Mass</th>
+            <th>SO2 Mass</th>
+            <th>NOx Mass</th>
+            <th>Heat Input</th>
+            <th>SO2 Control</th>
+            <th>NOx Control</th>
+            <th>PM Control</th>
+        </tr>
+
+    </thead>
+
+    <tbody>
+
+        {% for record in records %}
+
+        <tr>
+
+            <td>
+                {{ record.reporting_year }}
+            </td>
+
+            <td>
+                {{ record.unit.facility.state }}
+            </td>
+
+            <td>
+                {{ record.unit.facility.facility_name }}
+            </td>
+
+            <td>
+                {{ record.unit.facility.epa_facility_id }}
+            </td>
+
+            <td>
+                {{ record.unit.epa_unit_id }}
+            </td>
+
+            <td>
+                {{ record.unit.unit_type }}
+            </td>
+
+            <td>
+                {{ record.unit.primary_fuel }}
+            </td>
+
+            <td>
+                {{ record.gross_load }}
+            </td>
+
+            <td>
+                {{ record.co2_mass }}
+            </td>
+
+            <td>
+                {{ record.so2_mass }}
+            </td>
+
+            <td>
+                {{ record.nox_mass }}
+            </td>
+
+            <td>
+                {{ record.heat_input }}
+            </td>
+
+            <td>
+                {{ record.so2_control }}
+            </td>
+
+            <td>
+                {{ record.nox_control }}
+            </td>
+
+            <td>
+                {{ record.pm_control }}
+            </td>
+
+        </tr>
+
+        {% endfor %}
+
+    </tbody>
+
+</table>
+
+{% else %}
+
+<p>
+    No records match the selected filters.
+</p>
+
+{% endif %}
+
+{% endblock %}

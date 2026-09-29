@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container">
+
+    <h1>Data Explorer</h1>
+
+    <p>
+        Explore environmental records imported into epaData.
+    </p>
+
+    {% if records %}
+
+        <p>
+            Records found: {{ records|length }}
+        </p>
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>State</th>
+                        <th>Facility</th>
+                        <th>Facility ID</th>
+                        <th>Unit</th>
+                        <th>Year</th>
+                        <th>Operating Time</th>
+                        <th>Gross Load</th>
+                        <th>Heat Input</th>
+                        <th>CO2</th>
+                        <th>SO2</th>
+                        <th>NOx</th>
+                        <th>Primary Fuel</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for record, unit, facility in records %}
+
+                    <tr>
+                        <td>{{ facility.state }}</td>
+                        <td>{{ facility.facility_name }}</td>
+                        <td>{{ facility.epa_facility_id }}</td>
+                        <td>{{ unit.epa_unit_id }}</td>
+                        <td>{{ record.reporting_year }}</td>
+                        <td>{{ record.operating_time }}</td>
+                        <td>{{ record.gross_load }}</td>
+                        <td>{{ record.heat_input }}</td>
+                        <td>{{ record.co2_mass }}</td>
+                        <td>{{ record.so2_mass }}</td>
+                        <td>{{ record.nox_mass }}</td>
+                        <td>{{ unit.primary_fuel }}</td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    {% else %}
+
+        <p>
+            No environmental records have been imported yet.
+        </p>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}
