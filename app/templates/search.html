@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Search | epaData{% endblock %}
+
+{% block content %}
+
+<div class="hero">
+
+    <h1>Search Database</h1>
+    <p>Search for records in the EPA database.</p>
+    
+    <br>
+    <br>
+
+
+    <!-- Search Bar -->
+    <form action="{{ url_for('main.search') }}" method="GET">
+        <input
+            type="text"
+            name="query"
+            placeholder="Search..."
+            value="{{ query }}"
+        >
+        <button type="submit">Search</button>
+    </form>
+
+    <br>
+    <br>
+
+    <!-- Search Results -->
+    <h2>Search Results</h2>
+
+    {% if query %}
+
+        {% if results %}
+
+            {% for record in results %}
+
+                <div class="result-card">
+                    <h3>{{ record.name }}</h3>
+                    <p>{{ record.building_type }}</p>
+                    <p>{{ record.address }}</p>
+                </div>
+
+            {% endfor %}
+
+        {% else %}
+
+            <p>No results found for "{{ query }}".</p>
+
+        {% endif %}
+
+    {% else %}
+
+        <p>Enter a search term to find records.</p>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

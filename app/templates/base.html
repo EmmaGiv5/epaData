@@ -12,10 +12,8 @@
 
     <title>{% block title %}epaData{% endblock %}</title>
 
-    <link
-        rel="stylesheet"
-        href="{{ url_for('static', filename='css/style.css') }}"
-    >
+    <link rel="stylesheet" href="{{ url_for('static', filename='js/css/style.css') }}">
+
 </head>
 
 <body>
@@ -49,7 +47,9 @@
          <br>
          <a href="/download">Data Download</a>
          <br>
-         <a href="/upload">Upload Data</a>
+         <a href="{{ url_for('main.upload') }}">
+                    EPA Retrieval Upload
+         </a>
          <br>
          <a href="/edits">Edit Data</a> <!-- ADMINS ONLY -->
 

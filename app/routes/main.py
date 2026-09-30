@@ -8,6 +8,7 @@
 import os
 import uuid
 from datetime import datetime
+from sqlalchemy import or_, cast, String
 
 from flask import (
     Blueprint,
