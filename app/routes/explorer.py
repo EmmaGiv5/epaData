@@ -4,6 +4,10 @@ from flask import Blueprint, render_template, request
 
 from app.models import AnnualRecord, Unit, Facility
 
+from app.services.search_service import (
+    apply_sorting,
+    apply_ranking,
+)
 
 explorer_bp = Blueprint(
     "explorer",
@@ -25,6 +29,19 @@ def explorer():
     fuel = request.args.get("fuel", "").strip()
     year = request.args.get("year", "").strip()
     control = request.args.get("control", "").strip()
+
+    # Historical search
+    min_year = request.args.get("min_year", "").strip()
+    max_year = request.args.get("max_year", "").strip()
+
+    # Sorting
+    sort_by = request.args.get("sort_by", "").strip()
+    sort_order = request.args.get("sort_order", "desc").strip()
+
+    # Top-N / Bottom-N
+    rank_mode = request.args.get("rank_mode", "").strip()
+    rank_by = request.args.get("rank_by", "co2_mass").strip()
+    rank_n = request.args.get("rank_n", 10, type=int)
 
     # Numeric range filters
     min_gross_load = request.args.get("min_gross_load", "").strip()
@@ -114,43 +131,38 @@ def explorer():
 
 
     # -----------------------------
+    # Historical Year Range
+    # -----------------------------
+
+    if min_year:
+        try:
+            query = query.filter(
+                AnnualRecord.reporting_year >= int(min_year)
+            )
+        except ValueError:
+            pass
+
+    if max_year:
+        try:
+            query = query.filter(
+                AnnualRecord.reporting_year <= int(max_year)
+            )
+        except ValueError:
+            pass
+    
+    # -----------------------------
     # Control Technology
     # -----------------------------
 
     if control:
-
         query = query.filter(
-            (
-                Unit.id.in_(
-                    query.session.query(Unit.id)
-                    .filter(
-                        Unit.primary_fuel.ilike(
-                            f"%{control}%"
-                        )
-                    )
-                )
-            )
+            (AnnualRecord.so2_control.ilike(f"%{control}%"))
             |
-            (
-                AnnualRecord.so2_control.ilike(
-                    f"%{control}%"
-                )
-            )
+            (AnnualRecord.nox_control.ilike(f"%{control}%"))
             |
-            (
-                AnnualRecord.nox_control.ilike(
-                    f"%{control}%"
-                )
-            )
-            |
-            (
-                AnnualRecord.pm_control.ilike(
-                    f"%{control}%"
-                )
-            )
+            (AnnualRecord.pm_control.ilike(f"%{control}%"))
         )
-
-
+        
     # -----------------------------
     # Numeric ranges
     # -----------------------------
@@ -293,26 +305,53 @@ def explorer():
 
     controls = sorted(controls)
 
-    # Pagination
+    # -----------------------------
+    # Sorting / Ranking / Pagination
+    # -----------------------------
+
     page = request.args.get("page", 1, type=int)
     per_page = 25
 
-    pagination = (
-        query
-        .order_by(
-         AnnualRecord.reporting_year.desc(),
-            Facility.facility_name,
-         Unit.epa_unit_id
+
+    # Top-N / Bottom-N
+    if rank_mode in ("top", "bottom"):
+
+        query = apply_ranking(
+            query,
+            rank_mode,
+            rank_by,
+            rank_n
         )
-        .paginate(
+
+        # Top-N / Bottom-N should not be paginated.
+        records = query.all()
+
+        pagination = None
+
+    else:
+
+        # Normal sorting
+        query = apply_sorting(
+            query,
+            sort_by,
+            sort_order
+        )
+
+        # Default ordering if no custom sort selected
+        if not sort_by:
+            query = query.order_by(
+                AnnualRecord.reporting_year.desc(),
+                Facility.facility_name,
+                Unit.epa_unit_id
+            )
+
+        pagination = query.paginate(
             page=page,
             per_page=per_page,
             error_out=False
         )
-    )
 
-    records = pagination.items
-
+        records = pagination.items
 
     # -----------------------------
     # Render page
@@ -350,4 +389,15 @@ def explorer():
 
         min_heat_input=min_heat_input,
         max_heat_input=max_heat_input,
+
+        min_year=min_year,
+        max_year=max_year,
+
+        sort_by=sort_by,
+        sort_order=sort_order,
+
+        rank_mode=rank_mode,
+        rank_by=rank_by,
+        rank_n=rank_n,
+
     )

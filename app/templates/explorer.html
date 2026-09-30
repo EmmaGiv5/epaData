@@ -268,6 +268,167 @@
 
     </table>
 
+    <!-- Historical Search -->
+
+    <h3>Historical Search</h3>
+
+    <label for="min_year">
+        From Year:
+    </label>
+
+    <input
+        type="number"
+        id="min_year"
+        name="min_year"
+        value="{{ min_year }}"
+        placeholder="e.g. 2015"
+>
+
+
+    <label for="max_year">
+        To Year:
+    </label>
+
+    <input
+        type="number"
+        id="max_year"
+        name="max_year"
+        value="{{ max_year }}"
+        placeholder="e.g. 2025"
+    >
+
+    <!-- Sorting -->
+
+    <h3>Sorting</h3>
+
+    <label for="sort_by">
+        Sort By:
+    </label>
+
+    <select name="sort_by" id="sort_by">
+
+        <option value="">Default</option>
+
+        <option value="year"
+            {% if sort_by == "year" %}selected{% endif %}>
+            Year
+        </option>
+
+        <option value="gross_load"
+            {% if sort_by == "gross_load" %}selected{% endif %}>
+            Gross Load
+        </option>
+
+        <option value="co2_mass"
+            {% if sort_by == "co2_mass" %}selected{% endif %}>
+            CO2 Mass
+        </option>
+
+        <option value="so2_mass"
+            {% if sort_by == "so2_mass" %}selected{% endif %}>
+            SO2 Mass
+        </option>
+
+        <option value="nox_mass"
+            {% if sort_by == "nox_mass" %}selected{% endif %}>
+            NOx Mass
+        </option>
+
+        <option value="heat_input"
+            {% if sort_by == "heat_input" %}selected{% endif %}>
+            Heat Input
+        </option>
+
+    </select>
+
+
+    <select name="sort_order" id="sort_order">
+
+    <option value="desc"
+        {% if sort_order == "desc" %}selected{% endif %}>
+        Descending
+    </option>
+
+    <option value="asc"
+        {% if sort_order == "asc" %}selected{% endif %}>
+        Ascending
+    </option>
+
+    </select>
+
+
+    <!-- Top / Bottom N -->
+
+    <h3>Top / Bottom N</h3>
+
+    <label for="rank_mode">
+        Ranking:
+    </label>
+
+    <select name="rank_mode" id="rank_mode">
+
+        <option value=""
+            {% if not rank_mode %}selected{% endif %}>
+            None
+        </option>
+
+        <option value="top"
+            {% if rank_mode == "top" %}selected{% endif %}>
+            Top N
+        </option>
+
+        <option value="bottom"
+            {% if rank_mode == "bottom" %}selected{% endif %}>
+            Bottom N
+        </option>
+
+    </select>
+
+    <label for="rank_by">
+        Metric:
+    </label>
+
+    <select name="rank_by" id="rank_by">
+
+    <option value="co2_mass"
+        {% if rank_by == "co2_mass" %}selected{% endif %}>
+        CO2 Mass
+    </option>
+
+    <option value="so2_mass"
+        {% if rank_by == "so2_mass" %}selected{% endif %}>
+        SO2 Mass
+    </option>
+
+    <option value="nox_mass"
+        {% if rank_by == "nox_mass" %}selected{% endif %}>
+        NOx Mass
+    </option>
+
+    <option value="gross_load"
+        {% if rank_by == "gross_load" %}selected{% endif %}>
+        Gross Load
+    </option>
+
+    <option value="heat_input"
+        {% if rank_by == "heat_input" %}selected{% endif %}>
+        Heat Input
+    </option>
+
+    </select>
+
+    <label for="rank_n">
+        N:
+    </label>
+
+    <input
+        type="number"
+        id="rank_n"
+        name="rank_n"
+        min="1"
+        max="1000"
+        value="{{ rank_n }}"
+    >
 
     <br>
 
