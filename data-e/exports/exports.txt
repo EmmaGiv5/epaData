@@ -1,2 +1,0 @@
-Temporary/generated exports can go here. 
-Depending on your implementation, you could instead generate CSVs directly and send them to the browser without storing them permanently
