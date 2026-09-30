@@ -420,3 +420,18 @@ def data_explorer():
         facilities=facilities,
         years=[row[0] for row in years if row[0]],
     )
+    
+    
+@main_bp.route("/search", methods=["GET"])
+def search():
+
+    query = request.args.get("query", "").strip()
+
+    # Temporary empty results until database search is connected
+    results = []
+
+    return render_template(
+        "search.html",
+        results=results,
+        query=query
+    )
