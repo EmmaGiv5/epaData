@@ -20,6 +20,59 @@
 
 <body>
 
+    <!-- top navigation -->
+    <nav>
+        <h1>Data Overview</h1>
+        <div class="welcome-bar">
+            <!-- *** Can add a variable for the username HERE *** -->
+            <h1>Welcome!</h1> 
+        </div>
+        <a href="/login">Login</a>
+    </nav>
+
+
+    <!-- sidebar -->
+    <div class="sidebar"> 
+        <!-- logo -->
+        <a href="{{ url_for('main.home') }}">
+            <img src="{{ url_for('static', filename='EPALogo.png') }}"
+                alt="EPA Logo"
+                width="200"
+                height="140">
+        </a>
+
+        <!-- links to the other web pages go here -->
+         <br>
+         <a href="{{ url_for('main.search') }}">Search</a>
+         <br>
+         <a href="/display">Data Display</a>
+         <br>
+         <a href="/download">Data Download</a>
+         <br>
+         <a href="/upload">Upload Data</a>
+         <br>
+         <a href="/edits">Edit Data</a> <!-- ADMINS ONLY -->
+
+        <!-- logout button -->
+         <div class="logout">
+            <a href="/logout">logout</a>
+         </div>
+
+    </div>
+   
+    <!-- Page-specific content goes here -->
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer>
+        epaData — EPA Data Management, Evaluation, and Visualization System
+    </footer>
+
+
+    <!-- OLD VERSION
+
     <header>
         <nav class="navbar">
 
@@ -62,6 +115,8 @@
             and Visualization System
         </p>
     </footer>
+
+    OLD VERSION END -->
 
 </body>
 </html>
