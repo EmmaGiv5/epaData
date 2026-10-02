@@ -1,1 +1,31 @@
 <!-- User selects the file -->
+{% extends "base.html" %}
+
+{% block title %}epaData{% endblock %}
+
+{% block content %}
+
+<div class="hero">
+
+    <!-- title -->
+    <h1>EPA Data</h1>
+
+    <!-- descriptions -->
+    <p>
+        EPA Data Management, Evaluation, and Visualization System
+    </p>
+
+    <p>
+        Manage, search, analyze, and visualize environmental
+        and power-sector data.
+    </p>
+
+    <!-- buttons -->
+    <div class="buttons">
+        <a class="button" href="{{ url_for('main.search') }}">Explore Data</a>
+        <a class="button" href="/upload">Upload Data</a>
+    </div>
+
+</div>
+
+{% endblock %}
