@@ -16,15 +16,19 @@ Search | epaData
 
 
     <!-- Search Bar -->
-    <form action="{{ url_for('main.search') }}" method="GET">
+    <form method="GET" action="{{ url_for('main.search') }}">
+
         <input
             type="text"
             name="query"
-            placeholder="Search..."
             value="{{ query }}"
+            placeholder="Search facilities, units, years, fuels..."
         >
+
         <button type="submit">Search</button>
+
     </form>
+
 
     <br>
     <br>
@@ -33,31 +37,81 @@ Search | epaData
         <!-- Search Results -->
         <h2>Search Results</h2>
 
-        {% if query %}
-
             {% if results %}
 
-                {% for record in results %}
+            <p>
+                Found {{ results|length }} result(s) for
+                "<strong>{{ query }}</strong>"
+            </p>
 
-                    <div class="result-card">
-                        <h3>{{ record.name }}</h3>
-                        <p>{{ record.building_type }}</p>
-                        <p>{{ record.address }}</p>
-                    </div>
+            {% for record in results %}
 
-                {% endfor %}
+                <div class="search-result">
 
-            {% else %}
+                    <h3>
+                        {{ record.unit.facility.facility_name }}
+                    </h3>
 
-                <p>No results found for "{{ query }}".</p>
+                    <p>
+                        <strong>EPA Facility ID:</strong>
+                        {{ record.unit.facility.epa_facility_id }}
+                    </p>
 
-            {% endif %}
+                    <p>
+                        <strong>State:</strong>
+                        {{ record.unit.facility.state }}
+                    </p>
+
+                    <p>
+                        <strong>Unit ID:</strong>
+                        {{ record.unit.epa_unit_id }}
+                    </p>
+
+                    <p>
+                        <strong>Unit Type:</strong>
+                        {{ record.unit.unit_type }}
+                    </p>
+
+                    <p>
+                        <strong>Primary Fuel:</strong>
+                        {{ record.unit.primary_fuel }}
+                    </p>
+
+                    <p>
+                        <strong>Reporting Year:</strong>
+                        {{ record.reporting_year }}
+                    </p>
+
+                    <p>
+                        <strong>CO₂:</strong>
+                        {{ record.co2_mass }}
+                    </p>
+
+                    <p>
+                        <strong>SO₂:</strong>
+                        {{ record.so2_mass }}
+                    </p>
+
+                    <p>
+                        <strong>NOx:</strong>
+                        {{ record.nox_mass }}
+                    </p>
+
+                    <hr>
+
+                </div>
+
+            {% endfor %}
 
         {% else %}
 
-            <p>Enter a search term to find records.</p>
+            <p>
+                No results found for
+                "<strong>{{ query }}</strong>".
+            </p>
 
         {% endif %}
+
     </div>
 
 </div>

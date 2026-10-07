@@ -38,6 +38,7 @@
     <!-- sidebar -->
     <div class="sidebar"> 
         <!-- logo -->
+        <br>
         <a href="{{ url_for('main.home') }}">
             <img src="{{ url_for('static', filename='EPALogo.png') }}"
                 alt="EPA Logo"
@@ -46,29 +47,31 @@
         </a>
 
         <!-- links to the other web pages go here -->
-        <br>
-        <a href="{{ url_for('main.search') }}">
-            Search Database
-        </a>
-        <br>
-        <a class="button" href="{{ url_for('explorer.explorer') }}">
-            Data Explorer
-        </a>
-        <br>
-        <a href="{{ url_for('main.upload') }}">
-            Data Upload
-        </a>
-        <br>
-        <a href="/download">
-            Data Download
-        </a>
-        <!--<br>
-        <a href="/edits">Edit Data</a> --> <!-- ADMINS ONLY -->
+        <div class="sideText">
+            <br>
+            <a href="{{ url_for('main.search') }}">
+                Search Database
+            </a>
+            <br>
+            <a href="{{ url_for('main.data_explorer') }}">
+                Data Explorer
+            </a>
+            <br>
+            <a href="{{ url_for('main.upload') }}">
+                Data Upload
+            </a>
+            <br>
+            <a href="/download">
+                Data Download
+            </a>
+            <!--<br>
+            <a href="/edits">Edit Data</a> --> <!-- ADMINS ONLY -->
+        </div>
 
         <!-- logout button -->
-         <div class="logout">
+        <div class="logout">
             <a href="/logout">logout</a>
-         </div>
+        </div>
 
     </div>
 
