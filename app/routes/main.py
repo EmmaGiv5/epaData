@@ -31,6 +31,7 @@ from app.models import (
     AnnualRecord,
     UploadedFile,
     DataProvenance,
+    User,
 )
 
 from app.services.validator import (
@@ -47,6 +48,109 @@ main_bp = Blueprint("main", __name__)
 @main_bp.route("/")
 def home():
     return render_template("index.html")
+
+
+@main_bp.route("/login", methods=["GET", "POST"])
+def login():
+
+    if request.method == "POST":
+
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+
+        user = User.query.filter_by(email=email).first()
+
+        if user and user.check_password(password):
+
+            session["user_id"] = user.id
+            session["user_email"] = user.email
+
+            flash("Login successful!", "success")
+
+            return redirect(url_for("main.home"))
+
+        flash(
+            "Invalid email or password.",
+            "error"
+        )
+
+    return render_template("login.html")
+
+
+@main_bp.route("/logout")
+def logout():
+
+    session.clear()
+
+    flash(
+        "You have been logged out.",
+        "success"
+    )
+
+    return redirect(
+        url_for("main.login")
+    )
+
+
+@main_bp.route("/create-user", methods=["GET", "POST"])
+def create_user():
+
+    if request.method == "POST":
+
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        confirm_password = request.form.get(
+            "confirm_password",
+            ""
+        )
+
+        # Check that the passwords match
+        if password != confirm_password:
+
+            flash(
+                "Passwords do not match.",
+                "error"
+            )
+
+            return render_template(
+                "create_user.html"
+            )
+
+        # Check whether the email already exists
+        existing_user = User.query.filter_by(
+            email=email
+        ).first()
+
+        if existing_user:
+
+            flash(
+                "An account with that email already exists.",
+                "error"
+            )
+
+            return render_template(
+                "create_user.html"
+            )
+
+        # Create the new user
+        user = User(email=email)
+
+        user.set_password(password)
+
+        db.session.add(user)
+        db.session.commit()
+
+        flash(
+            "Account created successfully! You can now log in.",
+            "success"
+        )
+
+        return redirect(
+            url_for("main.login")
+        )
+
+    return render_template("create_user.html")
+
 
 
 @main_bp.route("/upload", methods=["GET", "POST"])

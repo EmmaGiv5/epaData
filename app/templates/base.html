@@ -21,8 +21,26 @@
     <nav>
         <h1>Data Overview</h1>
         <div class="welcome-bar">
+            <h1>Welcome, </h1>
+
             <!-- *** Can add a variable for the username HERE *** -->
-            <h1>Welcome!</h1> 
+            {% if session.get("user_id") %}
+
+            Logged in as {{ session.get("user_email") }}
+
+            <br>
+
+            <a href="{{ url_for('main.logout') }}">
+                Logout
+            </a>
+
+        {% else %}
+
+            <a href="{{ url_for('main.login') }}">
+                Login
+            </a>
+
+        {% endif %} 
         </div>
         <a href="/login">Login</a>
     </nav>
@@ -73,7 +91,8 @@
 
         <!-- logout button -->
         <div class="logout">
-            <a href="/logout">logout</a>
+            <!-- <a href="/logout">logout</a> -->
+            <a href="{{ url_for("main.logout") }}">Logout</a>
         </div>
 
     </div>
@@ -81,70 +100,6 @@
     <footer>
         epaData — EPA Data Management, Evaluation, and Visualization System
     </footer>
-
-
-    <!-- OLD VERSION
-
-    <header>
-        <nav class="navbar">
-
-            <div class="nav-container">
-
-                <a href="{{ url_for('main.home') }}">
-                    Home
-                </a>
-
-                <a href="{{ url_for('main.upload') }}">
-                    EPA Retrieval Upload
-                </a>
-
-                <a href="{{ url_for('explorer.explorer') }}">
-                    Data Explorer
-                </a>
-
-                <a href="#">
-                    Download
-                </a>
-                </div>
-
-            </div>
-
-        </nav>
-    </header>
-
-    -->
-
-    <!-- sidebar -->
-    <!--
-    <div class="sidebar"> 
-        <a href="{{ url_for('main.home') }}">
-            <img src="{{ url_for('static', filename='EPALogo.png') }}"
-                alt="EPA Logo"
-                width="200"
-                height="140">
-        </a>
-         <br>
-         <a href="{{ url_for('main.search') }}">Search</a>
-         <br>
-         <a href="/display">Data Display</a>
-         <br>
-         <a href="/download">Data Download</a>
-         <br>
-         <a href="/upload">Upload Data</a>
-         <br>
-         <a href="/edits">Edit Data</a>
-
-         <div class="logout">
-            <a href="/logout">logout</a>
-         </div>
-
-    </div>
-
-    <footer>
-        epaData — EPA Data Management, Evaluation, and Visualization System
-    </footer>
-
-    OLD VERSION END -->
 
 </body>
 </html>
