@@ -19,7 +19,9 @@ class Facility(db.Model):
 
     epa_facility_id = db.Column(
         db.String(50),
-        nullable=False
+        nullable=False,
+        unique=True,
+        index=True
     )
 
     facility_name = db.Column(
