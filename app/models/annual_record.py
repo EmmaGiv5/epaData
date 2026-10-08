@@ -10,7 +10,7 @@ class AnnualRecord(db.Model):
         db.Integer,
         primary_key=True
     )
-
+    
     unit_id = db.Column(
         db.Integer,
         db.ForeignKey("units.id"),

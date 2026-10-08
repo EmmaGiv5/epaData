@@ -12,16 +12,9 @@ migrate = Migrate()
 
 
 def create_app():
-
     app = Flask(__name__)
 
-    app.config["SECRET_KEY"] = "dev-secret-key"
-
-    app.config["SQLALCHEMY_DATABASE_URI"] = (
-        "sqlite:///epaData.db"
-    )
-
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config.from_object("app.config.Config")
 
     app.config["UPLOAD_FOLDER"] = os.path.join(
         app.root_path,
@@ -46,4 +39,5 @@ def create_app():
     for rule in app.url_map.iter_rules():
         print(rule, "->", rule.endpoint)
         print("========\n")
+
     return app

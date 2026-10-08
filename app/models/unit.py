@@ -23,6 +23,10 @@ class Unit(db.Model):
         nullable=False
     )
 
+    __table_args__ = (
+        db.UniqueConstraint("facility_id", "epa_unit_id", name="unique_facility_unit"),
+    )
+
     unit_type = db.Column(
         db.String(100),
         nullable=True

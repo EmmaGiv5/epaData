@@ -31,9 +31,11 @@ from app.models import (
     AnnualRecord,
     UploadedFile,
     DataProvenance,
+    dataset,
     User,
 )
 
+from app.services.metadata_service import create_dataset_metadata
 from app.services.validator import (
     read_uploaded_file,
     validate_dataframe,
@@ -462,7 +464,19 @@ def import_dataframe(dataframe, original_filename):
 
         imported_count += 1
 
-    dataset.accepted_record_count = imported_count
+        dataset.accepted_record_count = imported_count
+
+    create_dataset_metadata(
+        dataset=dataset,
+        title=dataset.dataset_name,
+        description="EPA environmental dataset imported through the epaData upload workflow.",
+        source=dataset.data_source,
+        source_url=None,
+        geographic_scope="United States",
+        filters_applied=None,
+        file_format=get_file_extension(original_filename).replace(".", "").upper(),
+        notes="Metadata generated automatically during dataset import.",
+    )
 
     db.session.commit()
 

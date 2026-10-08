@@ -7,4 +7,6 @@ from app.models.unit import Unit
 from app.models.annual_record import AnnualRecord
 from app.models.uploaded_file import UploadedFile
 from app.models.data_provenance import DataProvenance
+from app.models.dataset_metadata import DatasetMetadata
+
 from app.models.user import User
