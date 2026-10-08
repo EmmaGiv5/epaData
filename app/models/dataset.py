@@ -69,5 +69,15 @@ class Dataset(db.Model):
         back_populates="dataset"
     )
 
+    dataset_metadata = db.relationship(
+            "DatasetMetadata", 
+            back_populates="dataset",
+            cascade="all, delete-orphan",
+            uselist=False
+    )
+
     def __repr__(self):
         return f"<Dataset {self.dataset_name}>"
+
+
+
