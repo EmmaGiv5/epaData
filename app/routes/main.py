@@ -8,7 +8,8 @@
 import os
 import uuid
 from datetime import datetime
-from sqlalchemy import or_
+#from sqlalchemy import or_
+from sqlalchemy import or_, cast, String
 # from sqlalchemy import or_, cast, String
 
 from flask import (
@@ -545,6 +546,7 @@ def data_explorer():
     
 @main_bp.route("/search", methods=["GET"])
 def search():
+
     # Get the text entered into the search box
     query = request.args.get("query", "").strip()
 
@@ -553,38 +555,73 @@ def search():
 
     # Only search if the user entered something
     if query:
+
         search_term = f"%{query}%"
 
         results = (
             AnnualRecord.query
-            .join(Unit, AnnualRecord.unit_id == Unit.id)
-            .join(Facility, Unit.facility_id == Facility.id)
+
+            # Connect AnnualRecord → Unit
+            .join(
+                Unit,
+                AnnualRecord.unit_id == Unit.id
+            )
+
+            # Connect Unit → Facility
+            .join(
+                Facility,
+                Unit.facility_id == Facility.id
+            )
+
+            # Search across the related tables
             .filter(
                 or_(
+
+                    # -------------------------
                     # Facility information
+                    # -------------------------
+
                     Facility.facility_name.ilike(search_term),
+
                     Facility.epa_facility_id.ilike(search_term),
+
                     Facility.state.ilike(search_term),
+
                     Facility.source_category.ilike(search_term),
 
+
+                    # -------------------------
                     # Unit information
+                    # -------------------------
+
                     Unit.epa_unit_id.ilike(search_term),
+
                     Unit.unit_type.ilike(search_term),
+
                     Unit.primary_fuel.ilike(search_term),
+
                     Unit.secondary_fuel.ilike(search_term),
 
+
+                    # -------------------------
                     # Annual record information
+                    # -------------------------
+
                     cast(
                         AnnualRecord.reporting_year,
                         String
                     ).ilike(search_term),
 
                     AnnualRecord.so2_control.ilike(search_term),
+
                     AnnualRecord.nox_control.ilike(search_term),
+
                     AnnualRecord.pm_control.ilike(search_term),
+
                     AnnualRecord.program_code.ilike(search_term)
                 )
             )
+
             .all()
         )
 
