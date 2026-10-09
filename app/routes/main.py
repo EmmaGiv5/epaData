@@ -663,83 +663,119 @@ def data_explorer():
 @main_bp.route("/search", methods=["GET"])
 def search():
 
-    # Get the text entered into the search box
-    query = request.args.get("query", "").strip()
+    # --------------------------------------------------
+    # 1. Get and normalize the user's search query
+    # --------------------------------------------------
 
-    # Start with an empty list
+    query = request.args.get("query", "").strip()
+    normalized_query = normalize_query(query)
+
+    # Start with an empty list of results
     results = []
 
-    # Only search if the user entered something
-    if query:
+    # --------------------------------------------------
+    # 2. Search only if the user entered something
+    # --------------------------------------------------
 
-        search_term = f"%{query}%"
+    if normalized_query:
+
+        search_term = f"%{normalized_query}%"
+
+        # Identify EPA measurements mentioned in the query.
+        # Example: "Compare CO2 and NOx emissions"
+        # returns ["nox_mass", "co2_mass"].
+        detected_fields = find_search_fields(
+            normalized_query
+        )
+
+        # --------------------------------------------------
+        # 3. Build the existing text search conditions
+        # --------------------------------------------------
+
+        text_conditions = [
+            # Facility information
+            Facility.facility_name.ilike(search_term),
+            Facility.epa_facility_id.ilike(search_term),
+            Facility.state.ilike(search_term),
+            Facility.source_category.ilike(search_term),
+
+            # Unit information
+            Unit.epa_unit_id.ilike(search_term),
+            Unit.unit_type.ilike(search_term),
+            Unit.primary_fuel.ilike(search_term),
+            Unit.secondary_fuel.ilike(search_term),
+
+            # Annual record information
+            cast(
+                AnnualRecord.reporting_year,
+                String
+            ).ilike(search_term),
+
+            AnnualRecord.so2_control.ilike(search_term),
+            AnnualRecord.nox_control.ilike(search_term),
+            AnnualRecord.pm_control.ilike(search_term),
+            AnnualRecord.program_code.ilike(search_term),
+        ]
+
+        # --------------------------------------------------
+        # 4. Add semantic measurement matching
+        # --------------------------------------------------
+
+        # If the user searches for "carbon emissions",
+        # include records that contain CO2 measurements.
+        #
+        # If the user searches for "CO2 and NOx",
+        # include records containing either measurement.
+
+        for field in detected_fields:
+
+            measurement_column = getattr(
+                AnnualRecord,
+                field
+            )
+
+            text_conditions.append(
+                measurement_column.isnot(None)
+            )
+
+        # --------------------------------------------------
+        # 5. Query the database
+        # --------------------------------------------------
 
         results = (
             AnnualRecord.query
 
-            # Connect AnnualRecord → Unit
+            # AnnualRecord -> Unit
             .join(
                 Unit,
                 AnnualRecord.unit_id == Unit.id
             )
 
-            # Connect Unit → Facility
+            # Unit -> Facility
             .join(
                 Facility,
                 Unit.facility_id == Facility.id
             )
 
-            # Search across the related tables
+            # Match existing text searches OR recognized
+            # EPA measurement terminology.
             .filter(
-                or_(
+                or_(*text_conditions)
+            )
 
-                    # -------------------------
-                    # Facility information
-                    # -------------------------
-
-                    Facility.facility_name.ilike(search_term),
-
-                    Facility.epa_facility_id.ilike(search_term),
-
-                    Facility.state.ilike(search_term),
-
-                    Facility.source_category.ilike(search_term),
-
-
-                    # -------------------------
-                    # Unit information
-                    # -------------------------
-
-                    Unit.epa_unit_id.ilike(search_term),
-
-                    Unit.unit_type.ilike(search_term),
-
-                    Unit.primary_fuel.ilike(search_term),
-
-                    Unit.secondary_fuel.ilike(search_term),
-
-
-                    # -------------------------
-                    # Annual record information
-                    # -------------------------
-
-                    cast(
-                        AnnualRecord.reporting_year,
-                        String
-                    ).ilike(search_term),
-
-                    AnnualRecord.so2_control.ilike(search_term),
-
-                    AnnualRecord.nox_control.ilike(search_term),
-
-                    AnnualRecord.pm_control.ilike(search_term),
-
-                    AnnualRecord.program_code.ilike(search_term)
-                )
+            # Newest reporting years first
+            .order_by(
+                AnnualRecord.reporting_year.desc(),
+                Facility.facility_name,
+                Unit.epa_unit_id
             )
 
             .all()
         )
+
+    # --------------------------------------------------
+    # 6. Display results in the existing template
+    # --------------------------------------------------
 
     return render_template(
         "search.html",
