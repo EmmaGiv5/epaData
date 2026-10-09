@@ -31,3 +31,8 @@ data/exports/
 # Operating system files
 .DS_Store
 Thumbs.db
+
+# data
+data/seed/clean_daily_emissions_ky_2016_2025.csv
+data/seed/clean_daily_emissions_ky.csv
+
