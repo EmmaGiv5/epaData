@@ -24,6 +24,8 @@ from flask import (
 )
 from werkzeug.utils import secure_filename
 
+from app.services.metadata_service import create_dataset_metadata
+
 from app import db
 from app.models import (
     Dataset,
@@ -32,7 +34,7 @@ from app.models import (
     AnnualRecord,
     UploadedFile,
     DataProvenance,
-    dataset,
+    #dataset,
     User,
 )
 
@@ -317,23 +319,55 @@ def upload():
 
 def import_dataframe(dataframe, original_filename):
 
+    # ---------------------------------------------------------
+    # Determine the reporting years in the uploaded dataset
+    # ---------------------------------------------------------
+
+    years = sorted(
+        dataframe["reporting_year"]
+        .dropna()
+        .astype(int)
+        .unique()
+        .tolist()
+    )
+
+    if len(years) == 1:
+        dataset_reporting_year = years[0]
+        year_description = str(years[0])
+    else:
+        dataset_reporting_year = None
+        year_description = (
+            f"{years[0]}-{years[-1]}"
+            if years
+            else "Unknown"
+        )
+
+    # ---------------------------------------------------------
+    # Create the Dataset
+    # ---------------------------------------------------------
+
     dataset = Dataset(
         dataset_name=os.path.splitext(
             original_filename
         )[0],
         data_source="EPA uploaded file",
-        reporting_year=int(
-            dataframe["reporting_year"].min()
-        ),
+        reporting_year=dataset_reporting_year,
         retrieval_upload_date=datetime.utcnow(),
         original_filename=original_filename,
         raw_record_count=len(dataframe),
         accepted_record_count=0,
-        notes="Imported through epaData upload workflow.",
+        notes=(
+            "Imported through epaData upload workflow. "
+            f"Reporting years: {year_description}."
+        ),
     )
 
     db.session.add(dataset)
     db.session.flush()
+
+    # ---------------------------------------------------------
+    # Create UploadedFile record
+    # ---------------------------------------------------------
 
     uploaded = UploadedFile(
         dataset_id=dataset.id,
@@ -349,12 +383,24 @@ def import_dataframe(dataframe, original_filename):
 
     db.session.add(uploaded)
 
+    # ---------------------------------------------------------
+    # Caches prevent duplicate facilities and units
+    # ---------------------------------------------------------
+
     facility_cache = {}
     unit_cache = {}
 
     imported_count = 0
 
+    # ---------------------------------------------------------
+    # Import each row
+    # ---------------------------------------------------------
+
     for _, row in dataframe.iterrows():
+
+        # -----------------------------------------------------
+        # Facility
+        # -----------------------------------------------------
 
         facility_key = str(
             row["epa_facility_id"]
@@ -368,7 +414,9 @@ def import_dataframe(dataframe, original_filename):
                 facility_name=str(
                     row["facility_name"]
                 ),
-                state=str(row["state"]),
+                state=str(
+                    row["state"]
+                ),
                 source_category=None
             )
 
@@ -378,6 +426,10 @@ def import_dataframe(dataframe, original_filename):
             facility_cache[facility_key] = facility
 
         facility = facility_cache[facility_key]
+
+        # -----------------------------------------------------
+        # Unit
+        # -----------------------------------------------------
 
         unit_key = (
             facility.id,
@@ -391,11 +443,15 @@ def import_dataframe(dataframe, original_filename):
                 epa_unit_id=str(
                     row["epa_unit_id"]
                 ),
-                unit_type=str(
-                    row["unit_type"]
+                unit_type=(
+                    None
+                    if str(row["unit_type"]) == "nan"
+                    else str(row["unit_type"])
                 ),
-                primary_fuel=str(
-                    row["primary_fuel"]
+                primary_fuel=(
+                    None
+                    if str(row["primary_fuel"]) == "nan"
+                    else str(row["primary_fuel"])
                 ),
                 secondary_fuel=(
                     None
@@ -411,49 +467,77 @@ def import_dataframe(dataframe, original_filename):
 
         unit = unit_cache[unit_key]
 
+        # -----------------------------------------------------
+        # Annual Record
+        # -----------------------------------------------------
+
         record = AnnualRecord(
             unit_id=unit.id,
+
             reporting_year=int(
                 row["reporting_year"]
             ),
-            operating_time=float(
-                row["operating_time"]
+
+            operating_time=(
+                None
+                if str(row["operating_time"]) == "nan"
+                else float(row["operating_time"])
             ),
-            gross_load=float(
-                row["gross_load"]
+
+            gross_load=(
+                None
+                if str(row["gross_load"]) == "nan"
+                else float(row["gross_load"])
             ),
+
             steam_load=(
                 None
                 if str(row["steam_load"]) == "nan"
                 else float(row["steam_load"])
             ),
-            heat_input=float(
-                row["heat_input"]
+
+            heat_input=(
+                None
+                if str(row["heat_input"]) == "nan"
+                else float(row["heat_input"])
             ),
-            co2_mass=float(
-                row["co2_mass"]
+
+            co2_mass=(
+                None
+                if str(row["co2_mass"]) == "nan"
+                else float(row["co2_mass"])
             ),
-            so2_mass=float(
-                row["so2_mass"]
+
+            so2_mass=(
+                None
+                if str(row["so2_mass"]) == "nan"
+                else float(row["so2_mass"])
             ),
-            nox_mass=float(
-                row["nox_mass"]
+
+            nox_mass=(
+                None
+                if str(row["nox_mass"]) == "nan"
+                else float(row["nox_mass"])
             ),
+
             so2_control=(
                 None
                 if str(row["so2_control"]) == "nan"
                 else str(row["so2_control"])
             ),
+
             nox_control=(
                 None
                 if str(row["nox_control"]) == "nan"
                 else str(row["nox_control"])
             ),
+
             pm_control=(
                 None
                 if str(row["pm_control"]) == "nan"
                 else str(row["pm_control"])
             ),
+
             program_code=(
                 None
                 if str(row["program_code"]) == "nan"
@@ -467,17 +551,45 @@ def import_dataframe(dataframe, original_filename):
 
         dataset.accepted_record_count = imported_count
 
+    # ---------------------------------------------------------
+    # Create Dataset Metadata
+    # ---------------------------------------------------------
+
     create_dataset_metadata(
         dataset=dataset,
-        title=dataset.dataset_name,
-        description="EPA environmental dataset imported through the epaData upload workflow.",
-        source=dataset.data_source,
+        title=(
+            f"EPA Electric Generating Unit Annual Data "
+            f"({year_description})"
+        ),
+        description=(
+            "Annual EPA electric generating unit data "
+            "imported through the epaData upload workflow."
+        ),
+        source="U.S. Environmental Protection Agency",
         source_url=None,
-        geographic_scope="United States",
+        geographic_scope=", ".join(
+            sorted(
+                dataframe["state"]
+                .dropna()
+                .astype(str)
+                .unique()
+            )
+        ),
         filters_applied=None,
-        file_format=get_file_extension(original_filename).replace(".", "").upper(),
-        notes="Metadata generated automatically during dataset import.",
+        file_format=get_file_extension(
+            original_filename
+        ).replace(".", "").upper(),
+        notes=(
+            "Metadata generated automatically during "
+            "dataset import. "
+            f"Reporting years: {year_description}."
+        ),
+        record_count=len(dataframe),
     )
+
+    # ---------------------------------------------------------
+    # Save everything to the database
+    # ---------------------------------------------------------
 
     db.session.commit()
 

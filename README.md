@@ -10,6 +10,15 @@
 # Known limitations
 
 
+# Requirements
+
+- Python 3.11.17
+- Flask
+- Flask-SQLAlchemy
+- Flask-Migrate
+- SQLite
+
+
 
 
 # Current Reminders

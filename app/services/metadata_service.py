@@ -14,6 +14,7 @@ def create_dataset_metadata(
     filters_applied=None,
     file_format="CSV",
     notes=None,
+    record_count=None,
 ):
     metadata = DatasetMetadata(
         dataset_id=dataset.id,
@@ -26,7 +27,11 @@ def create_dataset_metadata(
         filters_applied=json.dumps(filters_applied)
         if filters_applied
         else None,
-        record_count=dataset.accepted_record_count,
+        record_count=(
+            record_count
+            if record_count is not None
+            else dataset.accepted_record_count
+        ),
         file_format=file_format,
         notes=notes,
     )
