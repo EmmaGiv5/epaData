@@ -10,7 +10,6 @@ import uuid
 from datetime import datetime
 #from sqlalchemy import or_
 from sqlalchemy import or_, cast, String
-# from sqlalchemy import or_, cast, String
 
 from flask import (
     Blueprint,
@@ -44,6 +43,11 @@ from app.services.validator import (
     validate_dataframe,
     get_file_extension,
     normalize_columns,
+)
+
+from app.search_utils import (
+    normalize_query,
+    find_search_fields,
 )
 
 

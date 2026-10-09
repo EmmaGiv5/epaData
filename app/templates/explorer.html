@@ -6,582 +6,641 @@ Explorer | epaData
 
 {% block content %}
 
-<h1>Data Explorer</h1>
+<div class="hero">
 
-<p>
-    Search and filter environmental records using facility,
-    location, unit, fuel, year, control technology, and
-    numeric ranges.
-</p>
+    <h1>Data Explorer</h1>
 
-<form method="GET" action="{{ url_for('explorer.explorer') }}">
+    <p>
+        Search and filter environmental records using facility,
+        location, unit, fuel, year, control technology, and
+        numeric ranges.
+    </p>
 
-    <h2>Filters</h2>
+    <form method="GET" action="{{ url_for('explorer.explorer') }}">
 
-    <!-- Facility Search -->
+        <h2>Filters</h2>
 
-    <h3>Facility Search</h3>
+        <div class="pages">
 
-    <label for="facility">
-        Facility Name:
-    </label>
+            <!-- Facility Search -->
 
-    <input
-        type="text"
-        id="facility"
-        name="facility"
-        value="{{ selected_facility }}"
-        placeholder="Search facility name"
-    >
+            <h3>Facility Search</h3>
 
+            <label for="facility">
+                Facility Name:
+            </label>
 
-    <!-- State -->
+            <input
+                type="text"
+                id="facility"
+                name="facility"
+                value="{{ selected_facility }}"
+                placeholder="Search facility name"
+            >
+        </div>
 
-    <h3>State</h3>
+        <br><br>
 
-    <select name="state" id="state">
+        <div class="pages">
 
-        <option value="">
-            All States
-        </option>
+            <!-- State -->
 
-        {% for state in states %}
+            <h3>State</h3>
 
-        <option
-            value="{{ state }}"
-            {% if selected_state == state %}selected{% endif %}
+            <select name="state" id="state">
+
+                <option value="">
+                    All States
+                </option>
+
+                {% for state in states %}
+
+                <option
+                    value="{{ state }}"
+                    {% if selected_state == state %}selected{% endif %}
+                >
+                    {{ state }}
+                </option>
+
+                {% endfor %}
+
+            </select>
+
+        </div>
+
+        <br><br>
+
+        <div class="pages">
+
+            <!-- Unit -->
+
+            <h3>Unit</h3>
+
+            <label for="unit">
+                Unit ID:
+            </label>
+
+            <input
+                type="text"
+                id="unit"
+                name="unit"
+                value="{{ selected_unit }}"
+                placeholder="Search unit ID"
+            >
+
+        </div>
+
+        <br><br>
+
+        <div class="pages">
+
+            <!-- Fuel -->
+
+            <h3>Fuel</h3>
+
+            <select name="fuel" id="fuel">
+
+                <option value="">
+                    All Fuels
+                </option>
+
+                {% for fuel_option in fuels %}
+
+                <option
+                    value="{{ fuel_option }}"
+                    {% if selected_fuel == fuel_option %}selected{% endif %}
+                >
+                    {{ fuel_option }}
+                </option>
+
+                {% endfor %}
+
+            </select>
+
+        </div>
+
+        <br><br>
+
+        <div class="pages">
+
+            <!-- Year -->
+
+            <h3>Year</h3>
+
+            <select name="year" id="year">
+
+                <option value="">
+                    All Years
+                </option>
+
+                {% for year_option in years %}
+
+                <option
+                    value="{{ year_option }}"
+                    {% if selected_year == year_option|string %}selected{% endif %}
+                >
+                    {{ year_option }}
+                </option>
+
+                {% endfor %}
+
+            </select>
+
+        </div>
+
+        <br><br>
+
+        <div class="pages">
+
+            <!-- Control Technology -->
+
+            <h3>Control Technology</h3>
+
+            <select name="control" id="control">
+
+                <option value="">
+                    All Control Technologies
+                </option>
+
+                {% for control_option in controls %}
+
+                <option
+                    value="{{ control_option }}"
+                    {% if selected_control == control_option %}selected{% endif %}
+                >
+                    {{ control_option }}
+                </option>
+
+                {% endfor %}
+
+            </select>
+
+        </div>
+
+        <br><br>
+
+        <div class="pages">
+
+            <!-- Numeric Ranges -->
+
+            <h3>Numeric Ranges</h3>
+
+            <table>
+
+                <tr>
+                    <th>Measure</th>
+                    <th>Minimum</th>
+                    <th>Maximum</th>
+                </tr>
+
+                <tr>
+                    <td>Gross Load</td>
+
+                    <td>
+                        <input
+                            type="number"
+                            step="any"
+                            name="min_gross_load"
+                            value="{{ min_gross_load }}"
+                        >
+                    </td>
+
+                    <td>
+                        <input
+                            type="number"
+                            step="any"
+                            name="max_gross_load"
+                            value="{{ max_gross_load }}"
+                        >
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>CO2 Mass</td>
+
+                    <td>
+                        <input
+                            type="number"
+                            step="any"
+                            name="min_co2"
+                            value="{{ min_co2 }}"
+                        >
+                    </td>
+
+                    <td>
+                        <input
+                            type="number"
+                            step="any"
+                            name="max_co2"
+                            value="{{ max_co2 }}"
+                        >
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>SO2 Mass</td>
+
+                    <td>
+                        <input
+                            type="number"
+                            step="any"
+                            name="min_so2"
+                            value="{{ min_so2 }}"
+                        >
+                    </td>
+
+                    <td>
+                        <input
+                            type="number"
+                            step="any"
+                            name="max_so2"
+                            value="{{ max_so2 }}"
+                        >
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>NOx Mass</td>
+
+                    <td>
+                        <input
+                            type="number"
+                            step="any"
+                            name="min_nox"
+                            value="{{ min_nox }}"
+                        >
+                    </td>
+
+                    <td>
+                        <input
+                            type="number"
+                            step="any"
+                            name="max_nox"
+                            value="{{ max_nox }}"
+                        >
+                    </td>
+                </tr>
+
+                <tr>
+                    <td>Heat Input</td>
+
+                    <td>
+                        <input
+                            type="number"
+                            step="any"
+                            name="min_heat_input"
+                            value="{{ min_heat_input }}"
+                        >
+                    </td>
+
+                    <td>
+                        <input
+                            type="number"
+                            step="any"
+                            name="max_heat_input"
+                            value="{{ max_heat_input }}"
+                        >
+                    </td>
+                </tr>
+
+            </table>
+
+        </div>
+
+        <br><br>
+
+        <div class="pages">
+
+            <!-- Historical Search -->
+
+            <h3>Historical Search</h3>
+
+            <label for="min_year">
+                From Year:
+            </label>
+
+            <input
+                type="number"
+                id="min_year"
+                name="min_year"
+                value="{{ min_year }}"
+                placeholder="e.g. 2015"
         >
-            {{ state }}
-        </option>
 
-        {% endfor %}
 
-    </select>
+            <label for="max_year">
+                To Year:
+            </label>
 
+            <input
+                type="number"
+                id="max_year"
+                name="max_year"
+                value="{{ max_year }}"
+                placeholder="e.g. 2025"
+            >
 
-    <!-- Unit -->
+        </div>
 
-    <h3>Unit</h3>
+        <br><br>
 
-    <label for="unit">
-        Unit ID:
-    </label>
+        <div class="pages">
 
-    <input
-        type="text"
-        id="unit"
-        name="unit"
-        value="{{ selected_unit }}"
-        placeholder="Search unit ID"
-    >
+            <!-- Sorting -->
 
+            <h3>Sorting</h3>
 
-    <!-- Fuel -->
+            <label for="sort_by">
+                Sort By:
+            </label>
 
-    <h3>Fuel</h3>
+            <select name="sort_by" id="sort_by">
 
-    <select name="fuel" id="fuel">
+                <option value="">Default</option>
 
-        <option value="">
-            All Fuels
-        </option>
+                <option value="year"
+                    {% if sort_by == "year" %}selected{% endif %}>
+                    Year
+                </option>
 
-        {% for fuel_option in fuels %}
+                <option value="gross_load"
+                    {% if sort_by == "gross_load" %}selected{% endif %}>
+                    Gross Load
+                </option>
 
-        <option
-            value="{{ fuel_option }}"
-            {% if selected_fuel == fuel_option %}selected{% endif %}
-        >
-            {{ fuel_option }}
-        </option>
+                <option value="co2_mass"
+                    {% if sort_by == "co2_mass" %}selected{% endif %}>
+                    CO2 Mass
+                </option>
 
-        {% endfor %}
+                <option value="so2_mass"
+                    {% if sort_by == "so2_mass" %}selected{% endif %}>
+                    SO2 Mass
+                </option>
 
-    </select>
+                <option value="nox_mass"
+                    {% if sort_by == "nox_mass" %}selected{% endif %}>
+                    NOx Mass
+                </option>
 
+                <option value="heat_input"
+                    {% if sort_by == "heat_input" %}selected{% endif %}>
+                    Heat Input
+                </option>
 
-    <!-- Year -->
+            </select>
 
-    <h3>Year</h3>
 
-    <select name="year" id="year">
+            <select name="sort_order" id="sort_order">
 
-        <option value="">
-            All Years
-        </option>
+            <option value="desc"
+                {% if sort_order == "desc" %}selected{% endif %}>
+                Descending
+            </option>
 
-        {% for year_option in years %}
+            <option value="asc"
+                {% if sort_order == "asc" %}selected{% endif %}>
+                Ascending
+            </option>
 
-        <option
-            value="{{ year_option }}"
-            {% if selected_year == year_option|string %}selected{% endif %}
-        >
-            {{ year_option }}
-        </option>
+            </select>
 
-        {% endfor %}
+        </div>
 
-    </select>
+        <br><br>
 
+        <div class="pages">
 
-    <!-- Control Technology -->
+            <!-- Top / Bottom N -->
 
-    <h3>Control Technology</h3>
+            <h3>Top / Bottom N</h3>
 
-    <select name="control" id="control">
+            <label for="rank_mode">
+                Ranking:
+            </label>
 
-        <option value="">
-            All Control Technologies
-        </option>
+            <select name="rank_mode" id="rank_mode">
 
-        {% for control_option in controls %}
+                <option value=""
+                    {% if not rank_mode %}selected{% endif %}>
+                    None
+                </option>
 
-        <option
-            value="{{ control_option }}"
-            {% if selected_control == control_option %}selected{% endif %}
-        >
-            {{ control_option }}
-        </option>
+                <option value="top"
+                    {% if rank_mode == "top" %}selected{% endif %}>
+                    Top N
+                </option>
 
-        {% endfor %}
+                <option value="bottom"
+                    {% if rank_mode == "bottom" %}selected{% endif %}>
+                    Bottom N
+                </option>
 
-    </select>
+            </select>
 
+            <label for="rank_by">
+                Metric:
+            </label>
 
-    <!-- Numeric Ranges -->
+            <select name="rank_by" id="rank_by">
 
-    <h3>Numeric Ranges</h3>
+            <option value="co2_mass"
+                {% if rank_by == "co2_mass" %}selected{% endif %}>
+                CO2 Mass
+            </option>
 
-    <table>
-
-        <tr>
-            <th>Measure</th>
-            <th>Minimum</th>
-            <th>Maximum</th>
-        </tr>
-
-        <tr>
-            <td>Gross Load</td>
-
-            <td>
-                <input
-                    type="number"
-                    step="any"
-                    name="min_gross_load"
-                    value="{{ min_gross_load }}"
-                >
-            </td>
-
-            <td>
-                <input
-                    type="number"
-                    step="any"
-                    name="max_gross_load"
-                    value="{{ max_gross_load }}"
-                >
-            </td>
-        </tr>
-
-        <tr>
-            <td>CO2 Mass</td>
-
-            <td>
-                <input
-                    type="number"
-                    step="any"
-                    name="min_co2"
-                    value="{{ min_co2 }}"
-                >
-            </td>
-
-            <td>
-                <input
-                    type="number"
-                    step="any"
-                    name="max_co2"
-                    value="{{ max_co2 }}"
-                >
-            </td>
-        </tr>
-
-        <tr>
-            <td>SO2 Mass</td>
-
-            <td>
-                <input
-                    type="number"
-                    step="any"
-                    name="min_so2"
-                    value="{{ min_so2 }}"
-                >
-            </td>
-
-            <td>
-                <input
-                    type="number"
-                    step="any"
-                    name="max_so2"
-                    value="{{ max_so2 }}"
-                >
-            </td>
-        </tr>
-
-        <tr>
-            <td>NOx Mass</td>
-
-            <td>
-                <input
-                    type="number"
-                    step="any"
-                    name="min_nox"
-                    value="{{ min_nox }}"
-                >
-            </td>
-
-            <td>
-                <input
-                    type="number"
-                    step="any"
-                    name="max_nox"
-                    value="{{ max_nox }}"
-                >
-            </td>
-        </tr>
-
-        <tr>
-            <td>Heat Input</td>
-
-            <td>
-                <input
-                    type="number"
-                    step="any"
-                    name="min_heat_input"
-                    value="{{ min_heat_input }}"
-                >
-            </td>
-
-            <td>
-                <input
-                    type="number"
-                    step="any"
-                    name="max_heat_input"
-                    value="{{ max_heat_input }}"
-                >
-            </td>
-        </tr>
-
-    </table>
-
-    <!-- Historical Search -->
-
-    <h3>Historical Search</h3>
-
-    <label for="min_year">
-        From Year:
-    </label>
-
-    <input
-        type="number"
-        id="min_year"
-        name="min_year"
-        value="{{ min_year }}"
-        placeholder="e.g. 2015"
->
-
-
-    <label for="max_year">
-        To Year:
-    </label>
-
-    <input
-        type="number"
-        id="max_year"
-        name="max_year"
-        value="{{ max_year }}"
-        placeholder="e.g. 2025"
-    >
-
-    <!-- Sorting -->
-
-    <h3>Sorting</h3>
-
-    <label for="sort_by">
-        Sort By:
-    </label>
-
-    <select name="sort_by" id="sort_by">
-
-        <option value="">Default</option>
-
-        <option value="year"
-            {% if sort_by == "year" %}selected{% endif %}>
-            Year
-        </option>
-
-        <option value="gross_load"
-            {% if sort_by == "gross_load" %}selected{% endif %}>
-            Gross Load
-        </option>
-
-        <option value="co2_mass"
-            {% if sort_by == "co2_mass" %}selected{% endif %}>
-            CO2 Mass
-        </option>
-
-        <option value="so2_mass"
-            {% if sort_by == "so2_mass" %}selected{% endif %}>
-            SO2 Mass
-        </option>
-
-        <option value="nox_mass"
-            {% if sort_by == "nox_mass" %}selected{% endif %}>
-            NOx Mass
-        </option>
-
-        <option value="heat_input"
-            {% if sort_by == "heat_input" %}selected{% endif %}>
-            Heat Input
-        </option>
-
-    </select>
-
-
-    <select name="sort_order" id="sort_order">
-
-    <option value="desc"
-        {% if sort_order == "desc" %}selected{% endif %}>
-        Descending
-    </option>
-
-    <option value="asc"
-        {% if sort_order == "asc" %}selected{% endif %}>
-        Ascending
-    </option>
-
-    </select>
-
-
-    <!-- Top / Bottom N -->
-
-    <h3>Top / Bottom N</h3>
-
-    <label for="rank_mode">
-        Ranking:
-    </label>
-
-    <select name="rank_mode" id="rank_mode">
-
-        <option value=""
-            {% if not rank_mode %}selected{% endif %}>
-            None
-        </option>
-
-        <option value="top"
-            {% if rank_mode == "top" %}selected{% endif %}>
-            Top N
-        </option>
-
-        <option value="bottom"
-            {% if rank_mode == "bottom" %}selected{% endif %}>
-            Bottom N
-        </option>
-
-    </select>
-
-    <label for="rank_by">
-        Metric:
-    </label>
-
-    <select name="rank_by" id="rank_by">
-
-    <option value="co2_mass"
-        {% if rank_by == "co2_mass" %}selected{% endif %}>
-        CO2 Mass
-    </option>
-
-    <option value="so2_mass"
-        {% if rank_by == "so2_mass" %}selected{% endif %}>
-        SO2 Mass
-    </option>
-
-    <option value="nox_mass"
-        {% if rank_by == "nox_mass" %}selected{% endif %}>
-        NOx Mass
-    </option>
-
-    <option value="gross_load"
-        {% if rank_by == "gross_load" %}selected{% endif %}>
-        Gross Load
-    </option>
-
-    <option value="heat_input"
-        {% if rank_by == "heat_input" %}selected{% endif %}>
-        Heat Input
-    </option>
-
-    </select>
-
-    <label for="rank_n">
-        N:
-    </label>
-
-    <input
-        type="number"
-        id="rank_n"
-        name="rank_n"
-        min="1"
-        max="1000"
-        value="{{ rank_n }}"
-    >
-
-    <br>
-
-    <button type="submit">
-        Apply Filters
-    </button>
-
-    <a href="{{ url_for('explorer.explorer') }}">
-        Clear Filters
-    </a>
-
-</form>
-
-
-<hr>
-
-
-<!-- Results -->
-
-<h2>Results</h2>
-
-<p>
-    Records found:
-    <strong>{{ records|length }}</strong>
-</p>
-
-
-{% if records %}
-
-<table border="1" cellpadding="5" cellspacing="0">
-
-    <thead>
-
-        <tr>
-            <th>Year</th>
-            <th>State</th>
-            <th>Facility</th>
-            <th>Facility ID</th>
-            <th>Unit ID</th>
-            <th>Unit Type</th>
-            <th>Primary Fuel</th>
-            <th>Gross Load</th>
-            <th>CO2 Mass</th>
-            <th>SO2 Mass</th>
-            <th>NOx Mass</th>
-            <th>Heat Input</th>
-            <th>SO2 Control</th>
-            <th>NOx Control</th>
-            <th>PM Control</th>
-        </tr>
-
-    </thead>
-
-    <tbody>
-
-        {% for record in records %}
-
-        <tr>
-
-            <td>{{ record.reporting_year }}</td>
-            <td>{{ record.unit.facility.state }}</td>
-            <td>{{ record.unit.facility.facility_name }}</td>
-            <td>{{ record.unit.facility.epa_facility_id }}</td>
-            <td>{{ record.unit.epa_unit_id }}</td>
-            <td>{{ record.unit.unit_type }}</td>
-            <td>{{ record.unit.primary_fuel }}</td>
-            <td>{{ record.gross_load }}</td>
-            <td>{{ record.co2_mass }}</td>
-            <td>{{ record.so2_mass }}</td>
-            <td>{{ record.nox_mass }}</td>
-            <td>{{ record.heat_input }}</td>
-            <td>{{ record.so2_control }}</td>
-            <td>{{ record.nox_control }}</td>
-            <td>{{ record.pm_control }}</td>
-
-        </tr>
-
-        {% endfor %}
-
-    </tbody>
-
-</table>
-
-{% else %}
-
-<p>
-    No records match the selected filters.
-</p>
-
-{% endif %}
-
-
-{% if pagination.pages > 1 %}
-
-<hr>
-
-<div>
-
-    {% if pagination.has_prev %}
-    <a href="{{ url_for(
-        'explorer.explorer',
-        facility=selected_facility,
-        state=selected_state,
-        unit=selected_unit,
-        fuel=selected_fuel,
-        year=selected_year,
-        control=selected_control,
-        min_co2=min_co2,
-        max_co2=max_co2,
-        min_nox=min_nox,
-        max_nox=max_nox,
-        min_so2=min_so2,
-        max_so2=max_so2,
-        page=pagination.prev_num
-    ) }}">
-        Previous
-    </a>
-    {% endif %}
-
-    &nbsp;
-
-    <strong>
-        Page {{ pagination.page }} of {{ pagination.pages }}
-    </strong>
-
-    &nbsp;
-
-    {% if pagination.has_next %}
-    <a href="{{ url_for(
-        'explorer.explorer',
-        facility=selected_facility,
-        state=selected_state,
-        unit=selected_unit,
-        fuel=selected_fuel,
-        year=selected_year,
-        control=selected_control,
-        min_co2=min_co2,
-        max_co2=max_co2,
-        min_nox=min_nox,
-        max_nox=max_nox,
-        min_so2=min_so2,
-        max_so2=max_so2,
-        page=pagination.next_num
-    ) }}">
-        Next
-    </a>
-    {% endif %}
-
-</div>
+            <option value="so2_mass"
+                {% if rank_by == "so2_mass" %}selected{% endif %}>
+                SO2 Mass
+            </option>
+
+            <option value="nox_mass"
+                {% if rank_by == "nox_mass" %}selected{% endif %}>
+                NOx Mass
+            </option>
+
+            <option value="gross_load"
+                {% if rank_by == "gross_load" %}selected{% endif %}>
+                Gross Load
+            </option>
+
+            <option value="heat_input"
+                {% if rank_by == "heat_input" %}selected{% endif %}>
+                Heat Input
+            </option>
+
+            </select>
+
+            <label for="rank_n">
+                N:
+            </label>
+
+            <input
+                type="number"
+                id="rank_n"
+                name="rank_n"
+                min="1"
+                max="1000"
+                value="{{ rank_n }}"
+            >
+
+            <br>
+
+            <button type="submit">
+                Apply Filters
+            </button>
+
+            <a href="{{ url_for('explorer.explorer') }}">
+                Clear Filters
+            </a>
+
+        </form>
+
+
+        <hr>
+    
+    </div>
+
+    <br><br>
+
+    <div class="pages">
+
+        <!-- Results -->
+
+        <h2>Results</h2>
+
+        <p>
+            Records found:
+            <strong>{{ records|length }}</strong>
+        </p>
+
+
+        {% if records %}
+
+        <table border="1" cellpadding="5" cellspacing="0">
+
+            <thead>
+
+                <tr>
+                    <th>Year</th>
+                    <th>State</th>
+                    <th>Facility</th>
+                    <th>Facility ID</th>
+                    <th>Unit ID</th>
+                    <th>Unit Type</th>
+                    <th>Primary Fuel</th>
+                    <th>Gross Load</th>
+                    <th>CO2 Mass</th>
+                    <th>SO2 Mass</th>
+                    <th>NOx Mass</th>
+                    <th>Heat Input</th>
+                    <th>SO2 Control</th>
+                    <th>NOx Control</th>
+                    <th>PM Control</th>
+                </tr>
+
+            </thead>
+
+            <tbody>
+
+                {% for record in records %}
+
+                <tr>
+
+                    <td>{{ record.reporting_year }}</td>
+                    <td>{{ record.unit.facility.state }}</td>
+                    <td>{{ record.unit.facility.facility_name }}</td>
+                    <td>{{ record.unit.facility.epa_facility_id }}</td>
+                    <td>{{ record.unit.epa_unit_id }}</td>
+                    <td>{{ record.unit.unit_type }}</td>
+                    <td>{{ record.unit.primary_fuel }}</td>
+                    <td>{{ record.gross_load }}</td>
+                    <td>{{ record.co2_mass }}</td>
+                    <td>{{ record.so2_mass }}</td>
+                    <td>{{ record.nox_mass }}</td>
+                    <td>{{ record.heat_input }}</td>
+                    <td>{{ record.so2_control }}</td>
+                    <td>{{ record.nox_control }}</td>
+                    <td>{{ record.pm_control }}</td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+        {% else %}
+
+        <p>
+            No records match the selected filters.
+        </p>
+
+        {% endif %}
+
+
+        {% if pagination.pages > 1 %}
+
+        <hr>
+
+        <div>
+
+            {% if pagination.has_prev %}
+            <a href="{{ url_for(
+                'explorer.explorer',
+                facility=selected_facility,
+                state=selected_state,
+                unit=selected_unit,
+                fuel=selected_fuel,
+                year=selected_year,
+                control=selected_control,
+                min_co2=min_co2,
+                max_co2=max_co2,
+                min_nox=min_nox,
+                max_nox=max_nox,
+                min_so2=min_so2,
+                max_so2=max_so2,
+                page=pagination.prev_num
+            ) }}">
+                Previous
+            </a>
+            {% endif %}
+
+            &nbsp;
+
+            <strong>
+                Page {{ pagination.page }} of {{ pagination.pages }}
+            </strong>
+
+            &nbsp;
+
+            {% if pagination.has_next %}
+            <a href="{{ url_for(
+                'explorer.explorer',
+                facility=selected_facility,
+                state=selected_state,
+                unit=selected_unit,
+                fuel=selected_fuel,
+                year=selected_year,
+                control=selected_control,
+                min_co2=min_co2,
+                max_co2=max_co2,
+                min_nox=min_nox,
+                max_nox=max_nox,
+                min_so2=min_so2,
+                max_so2=max_so2,
+                page=pagination.next_num
+            ) }}">
+                Next
+            </a>
+            {% endif %}
+
+        </div>
+    </div>
+
+</div class="hero">
+
 
 {% endif %}
 
