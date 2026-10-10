@@ -36,3 +36,21 @@ Thumbs.db
 data/seed/clean_daily_emissions_ky_2016_2025.csv
 data/seed/clean_daily_emissions_ky.csv
 
+# supabase data
+
+## Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+## Python virtual environments
+.venv/
+venv/
+
+## Python cache files
+__pycache__/
+*.pyc
+  
+
+
+node_modules/

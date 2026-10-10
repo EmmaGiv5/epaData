@@ -1,71 +1,114 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-{% block title %}
-Create User | epaData
-{% endblock %}
+    <title>Create Account | epaData</title>
 
-{% block content %}
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='js/css/login.css') }}"
+    >
+</head>
 
-<div class="loginBox">
+<body>
+    <main class="login-page">
 
-    <div class="welcomeBox">
-        <h2>Create a new account.</h2>
-    </div>
+        <section class="login-card create-account-card">
 
-    <div class="login">
+            <!-- epaData branding -->
+            <header class="brand">
+                <div class="brand-mark" aria-hidden="true">e</div>
+                <h1>epa<span>Data</span></h1>
+                <p>Environmental data for a healthier tomorrow</p>
+            </header>
 
-        <h2>Create User</h2>
+            <!-- Welcome section -->
+            <div class="welcome-box">
+                <div class="user-icon" aria-hidden="true">♙</div>
+                <h2>Create Your Account</h2>
+                <p>Join epaData to explore environmental and EPA emissions data.</p>
+            </div>
 
-        <form method="POST"
-              action="{{ url_for('main.create_user') }}">
+            <!-- Account creation form -->
+            <div class="login-content">
 
-            <label for="email">Email:</label>
-            <input
-                type="email"
-                id="email"
-                name="email"
-                required
-            >
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="flash-messages" role="status">
+                            {% for category, message in messages %}
+                                <p class="flash-message {{ category }}">
+                                    {{ message }}
+                                </p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
 
-            <br><br>
+                <form
+                    method="POST"
+                    action="{{ url_for('main.create_user') }}"
+                    class="login-form"
+                >
+                    <div class="form-group">
+                        <label for="email">Email address</label>
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            placeholder="Enter your email address"
+                            autocomplete="email"
+                            required
+                        >
+                    </div>
 
-            <label for="password">Password:</label>
-            <input
-                type="password"
-                id="password"
-                name="password"
-                required
-            >
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Create a password"
+                            autocomplete="new-password"
+                            required
+                        >
+                    </div>
 
-            <br><br>
+                    <div class="form-group">
+                        <label for="confirm_password">Confirm password</label>
+                        <input
+                            type="password"
+                            id="confirm_password"
+                            name="confirm_password"
+                            placeholder="Enter your password again"
+                            autocomplete="new-password"
+                            required
+                        >
+                    </div>
 
-            <label for="confirm_password">
-                Confirm Password:
-            </label>
+                    <button class="login-btn" type="submit">
+                        Create Account <span aria-hidden="true">→</span>
+                    </button>
+                </form>
 
-            <input
-                type="password"
-                id="confirm_password"
-                name="confirm_password"
-                required
-            >
+                <div class="divider">
+                    <span>already registered?</span>
+                </div>
 
-            <br><br>
+                <nav class="login-links" aria-label="Account options">
+                    <a href="{{ url_for('main.login') }}">
+                        ← Back to Log In
+                    </a>
+                </nav>
 
-            <button class="login-btn" type="submit">
-                Create User
-            </button>
+            </div>
+        </section>
 
-        </form>
+        <footer class="page-footer">
+            <p>epaData · Exploring environmental data, one record at a time.</p>
+        </footer>
 
-        <br>
-
-        <a href="{{ url_for('main.login') }}">
-            Already have an account? Log in
-        </a>
-
-    </div>
-
-</div>
-
-{% endblock %}
+    </main>
+</body>
+</html>

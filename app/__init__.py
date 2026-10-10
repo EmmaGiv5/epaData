@@ -1,19 +1,17 @@
+
 # Initializes your Flask application
-# Creates the Flask app and connects:
-# Flask-SQLAlchemy, Flask-Migrate, configuration, and routes/blueprints
+# Connects the database, configuration, models, and routes.
 
 import os
+
 from flask import Flask, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
 
 db = SQLAlchemy()
-migrate = Migrate()
 
 
 def create_app():
-
-    # Create the Flask application FIRST
+    # Create the Flask application
     app = Flask(__name__)
 
     # Load application configuration
@@ -30,39 +28,52 @@ def create_app():
         exist_ok=True
     )
 
-    # Connect database and migrations
+    # Initialize the database connection
     db.init_app(app)
-    migrate.init_app(app, db)
 
-    # Register blueprints
+    # Load database models
+    from . import models
+
+    # Import application blueprints
     from .routes.main import main_bp
     from .routes.explorer import explorer_bp
 
+    # Register blueprints
     app.register_blueprint(main_bp)
     app.register_blueprint(explorer_bp)
 
     # Require login before accessing protected pages
-    ''' 
+    # Keep disabled while testing the application.
+    
     @app.before_request
     def require_login():
-
-        # Allow CSS, images, and JavaScript to load
         if request.endpoint == "static":
             return None
-
-        # Allow the login page without being logged in
+    
         if request.endpoint == "main.login":
             return None
-
-        # Redirect unauthenticated users to the login page
+    
         if "user_id" not in session:
             return redirect(url_for("main.login"))
 
-        # Allow logged-in users to continue
-        return None
-    '''
+    # Create database tables and check database configuration
+    with app.app_context():
+        print("\n========== DATABASE CHECK ==========")
 
-    # Print routes for debugging
+        print("\nDATABASE LOCATION:")
+        print(db.engine.url)
+
+        print("\nTABLES BEFORE create_all:")
+        print(list(db.metadata.tables.keys()))
+
+        db.create_all()
+
+        print("\nTABLES AFTER create_all:")
+        print(list(db.metadata.tables.keys()))
+
+        print("====================================\n")
+
+    # Print registered routes for debugging
     print("Registered routes:")
     for rule in app.url_map.iter_rules():
         print(rule, "->", rule.endpoint)

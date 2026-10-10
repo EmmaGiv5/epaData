@@ -8,14 +8,14 @@ Search | epaData
 
 <div class="hero">
 
+    <!-- Search Bar -->
     <h1>Search Database</h1>
     <p>Search for records in the EPA database.</p>
-    
-    <br>
-    <br>
 
+    <br><br>
 
     <!-- Search Bar -->
+    <!-- 
     <form method="GET" action="{{ url_for('main.search') }}">
 
         <input
@@ -24,19 +24,24 @@ Search | epaData
             value="{{ query }}"
             placeholder="Search facilities, units, years, fuels..."
         >
+    </form>
+    -->
+    <form action="{{ url_for('main.search') }}" method="GET">
+        <input type="text" name="query"
+               placeholder="Search..."
+               value="{{ query }}">
 
         <button type="submit">Search</button>
 
     </form>
 
-
-    <br>
-    <br>
+    <br><br>
 
     <div class="pages">
         <!-- Search Results -->
         <h2>Search Results</h2>
 
+        <!-- 
             {% if results %}
 
             <p>
@@ -113,7 +118,19 @@ Search | epaData
         {% endif %}
 
     </div>
+    -->
+    {% for record, unit, facility in results %}
 
+    <h3>{{ facility.facility_name }}</h3>
+
+    <p>Facility ID: {{ facility.epa_facility_id }}</p>
+    <p>State: {{ facility.state }}</p>
+    <p>Unit ID: {{ unit.epa_unit_id }}</p>
+    <p>Fuel: {{ unit.primary_fuel }}</p>
+    <p>Reporting Year: {{ record.reporting_year }}</p>
+    <p>CO2 Emissions: {{ record.co2_mass }}</p>
+
+{% endfor %}
 </div>
 
 {% endblock %}

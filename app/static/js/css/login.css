@@ -1,0 +1,444 @@
+
+/* ========================================
+   epaData Login Page
+   Colors: white, gray, dark brown, blue
+   ======================================== */
+
+:root {
+    --brown: #251101;
+    --blue: #2d71bd;
+    --blue-hover: #205a99;
+    --white: #ffffff;
+    --background: #f3f4f6;
+    --gray: #6b7280;
+    --border: #d1d5db;
+    --light-blue: #eaf2fb;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", Arial, sans-serif;
+    color: var(--brown);
+    background: var(--background);
+}
+
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Soft decorative background shapes */
+
+.login-page::before,
+.login-page::after {
+    content: "";
+    position: fixed;
+    border-radius: 50%;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.login-page::before {
+    width: 480px;
+    height: 480px;
+    background: #e2e7ed;
+    bottom: -300px;
+    left: -150px;
+}
+
+.login-page::after {
+    width: 550px;
+    height: 550px;
+    background: #dce8f5;
+    bottom: -360px;
+    right: -180px;
+}
+
+/* Main card */
+
+.login-card {
+    width: 100%;
+    max-width: 470px;
+    background: var(--white);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 16px 45px rgba(37, 17, 1, 0.12);
+    position: relative;
+    z-index: 1;
+}
+
+/* Brand header */
+
+.brand {
+    text-align: center;
+    padding: 30px 24px 24px;
+    background: var(--white);
+}
+
+.brand-mark {
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    border-radius: 12px;
+    background: var(--blue);
+    color: var(--white);
+    font-size: 28px;
+    font-weight: 800;
+    font-style: italic;
+    vertical-align: middle;
+}
+
+.brand h1 {
+    display: inline-block;
+    margin: 0;
+    color: var(--brown);
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    vertical-align: middle;
+}
+
+.brand h1 span {
+    color: var(--blue);
+}
+
+.brand p {
+    margin: 10px 0 0;
+    color: var(--gray);
+    font-size: 13px;
+    letter-spacing: 0.4px;
+}
+
+/* Welcome banner */
+
+.welcome-box {
+    background: var(--brown);
+    color: var(--white);
+    padding: 28px 30px 30px;
+    text-align: center;
+}
+
+.user-icon {
+    font-size: 34px;
+    line-height: 1;
+    margin-bottom: 12px;
+}
+
+.welcome-box h2 {
+    margin: 0 0 9px;
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.welcome-box p {
+    max-width: 310px;
+    margin: 0 auto;
+    color: #e5e7eb;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* Form area */
+
+.login-content {
+    padding: 32px;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--brown);
+}
+
+.form-group input {
+    width: 100%;
+    min-height: 49px;
+    padding: 13px 15px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--brown);
+    font: inherit;
+    font-size: 14px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input::placeholder {
+    color: #9ca3af;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(45, 113, 189, 0.15);
+}
+
+/* Login button */
+
+.login-btn {
+    width: 100%;
+    min-height: 50px;
+    margin-top: 3px;
+    padding: 13px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    border: none;
+    border-radius: 8px;
+    background: var(--blue);
+    color: var(--white);
+    font: inherit;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.login-btn span {
+    font-size: 22px;
+    line-height: 1;
+}
+
+.login-btn:hover {
+    background: var(--blue-hover);
+    transform: translateY(-1px);
+}
+
+.login-btn:focus-visible,
+.login-links a:focus-visible {
+    outline: 3px solid #8ab9ee;
+    outline-offset: 3px;
+}
+
+/* Divider */
+
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 25px 0 22px;
+    color: var(--gray);
+    font-size: 13px;
+}
+
+.divider::before,
+.divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+/* Account links */
+
+.login-links {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 17px;
+}
+
+.login-links a {
+    color: var(--blue);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.login-links a:hover {
+    color: var(--blue-hover);
+    text-decoration: underline;
+}
+
+/* Optional Flask flash messages */
+
+.flash-messages {
+    margin-bottom: 20px;
+}
+
+.flash-message {
+    padding: 12px 14px;
+    border-radius: 7px;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.flash-message + .flash-message {
+    margin-top: 8px;
+}
+
+.flash-message.error,
+.flash-message.danger {
+    background: #fef2f2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.flash-message.success {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.flash-message.warning {
+    background: #fffbeb;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+/* Footer */
+
+.page-footer {
+    position: relative;
+    z-index: 1;
+    margin-top: 22px;
+    text-align: center;
+}
+
+.page-footer p {
+    margin: 0;
+    color: var(--gray);
+    font-size: 12px;
+}
+
+/* Mobile layout */
+
+@media (max-width: 520px) {
+    .login-page {
+        padding: 20px 14px;
+    }
+
+    .login-card {
+        border-radius: 14px;
+    }
+
+    .brand {
+        padding: 24px 16px 20px;
+    }
+
+    .brand h1 {
+        font-size: 31px;
+    }
+
+    .brand p {
+        font-size: 12px;
+    }
+
+    .welcome-box {
+        padding: 25px 20px;
+    }
+
+    .welcome-box h2 {
+        font-size: 25px;
+    }
+
+    .login-content {
+        padding: 25px 22px;
+    }
+}
+
+
+/* Create account page adjustments */
+
+.create-account-card {
+    max-width: 490px;
+}
+
+.create-account-card .welcome-box p {
+    max-width: 350px;
+}
+
+.create-account-card .login-content {
+    padding-top: 28px;
+    padding-bottom: 30px;
+}
+
+.create-account-card .login-form {
+    gap: 18px;
+}
+
+
+/* Forgot password confirmation page */
+
+.reset-message {
+    text-align: center;
+    padding: 5px 0 25px;
+}
+
+.email-icon {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #eaf2fb;
+    color: #2d71bd;
+    font-size: 34px;
+}
+
+.reset-message h3 {
+    margin: 0 0 12px;
+    color: #251101;
+    font-size: 23px;
+}
+
+.reset-message p {
+    margin: 0 auto 14px;
+    max-width: 340px;
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+.reset-message .reset-note {
+    padding: 12px;
+    border-radius: 8px;
+    background: #f3f4f6;
+    font-size: 12px;
+}
+
+.reset-login-btn {
+    text-decoration: none;
+}
+
+.reset-footer {
+    margin-top: 22px;
+    text-align: center;
+}
+
+.reset-footer p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 12px;
+    line-height: 1.6;
+}

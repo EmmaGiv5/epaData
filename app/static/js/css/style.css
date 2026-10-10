@@ -68,8 +68,8 @@ nav .welcome-bar {
     font-size: 8px;
     color: white;
     background-color: #251101;
-    padding: 2px 130px;
-    border-radius: 15px;
+    padding: 2px 70px;
+    border-radius: 10px;
 }
 
 nav a {

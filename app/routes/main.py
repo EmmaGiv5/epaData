@@ -5,7 +5,19 @@
 
 # Creates your first webpage
 
+#import psycopg2
+from dotenv import load_dotenv
 import os
+# Load environment variables from .env
+load_dotenv()
+
+# Fetch variables
+#DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Connect to the database
+#connection = psycopg2.connect(DATABASE_URL)
+
+
 import uuid
 from datetime import datetime
 #from sqlalchemy import or_
@@ -160,6 +172,10 @@ def create_user():
 
     return render_template("create_user.html")
 
+
+@main_bp.route("/forgot-password")
+def forgot_password():
+    return render_template("forgot_password.html")
 
 
 @main_bp.route("/upload", methods=["GET", "POST"])
@@ -660,6 +676,7 @@ def data_explorer():
     )
     
     
+
 @main_bp.route("/search", methods=["GET"])
 def search():
 
@@ -782,3 +799,4 @@ def search():
         results=results,
         query=query
     )
+    

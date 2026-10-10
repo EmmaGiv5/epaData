@@ -1,71 +1,104 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        
+
     <title>Login | epaData</title>
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='js/css/style.css') }}">
-
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='js/css/login.css') }}"
+    >
 </head>
 
 <body>
+    <main class="login-page">
 
-    <!-- login box -->
+        <section class="login-card">
 
-    <div class="loginBox">
+            <header class="brand">
+                <div class="brand-mark" aria-hidden="true">e</div>
+                <h1>epa<span>Data</span></h1>
+                <p>Environmental data</p>
+            </header>
 
-        <div class="welcomeBox">
-            <h2>Login below with your email and password.</h2>
-        </div>
+            <div class="welcome-box">
+                <!--<div class="user-icon" aria-hidden="true">♙</div>-->
+                <h2>Welcome Back</h2>
+                <p>Log in to access your account and explore EPA data.</p>
+            </div>
 
-        <div class="login">
+            <div class="login-content">
 
-            <h2>Log In</h2>
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="flash-messages" role="status">
+                            {% for category, message in messages %}
+                                <p class="flash-message {{ category }}">
+                                    {{ message }}
+                                </p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
 
-            <form method="POST" action="{{ url_for('main.login') }}">
-
-                <label for="email">Email:</label>
-                <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    required
+                <form
+                    method="POST"
+                    action="{{ url_for('main.login') }}"
+                    class="login-form"
                 >
+                    <div class="form-group">
+                        <label for="email">Email address</label>
+                        <input
+                            type="email"
+                            id="email"
+                            name="email"
+                            placeholder="Enter your email address"
+                            autocomplete="email"
+                            required
+                        >
+                    </div>
 
-                <br><br>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            placeholder="Enter your password"
+                            autocomplete="current-password"
+                            required
+                        >
+                    </div>
 
-                <label for="password">Password:</label>
-                <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    required
-                >
+                    <button class="login-btn" type="submit">
+                        Log In <span aria-hidden="true">→</span>
+                    </button>
+                </form>
 
-                <br><br>
+                <div class="divider">
+                    <span>or</span>
+                </div>
 
-                <button class="login-btn" type="submit">
-                    Login
-                </button>
+                <nav class="login-links" aria-label="Account options">
+                    <a href="{{ url_for('main.create_user') }}">
+                        Create a new user
+                    </a>
 
-            </form>
+                    <a href="{{ url_for('main.forgot_password') }}">
+                        Forgot password?
+                    </a>
+                </nav>
 
-            <br>
+            </div>
+        </section>
 
-            <a href="{{ url_for('main.create_user') }}">
-                Create a new user
-            </a>
+        <footer class="page-footer">
+            <p>epaData · Exploring environmental data, one record at a time.</p>
+        </footer>
 
-            <br>
-
-            <a href="#">
-                Forgot password?
-            </a>
-
-        </div>
-
-    </div>
+    </main>
 </body>
 </html>
