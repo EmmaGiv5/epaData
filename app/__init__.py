@@ -41,7 +41,6 @@ def create_app():
     # Register blueprints
     app.register_blueprint(main_bp)
     app.register_blueprint(explorer_bp)
-
     # Require login before accessing protected pages
     # Keep disabled while testing the application.
     

@@ -24,6 +24,8 @@ def search():
     query = request.args.get("q", "").strip()
     state_code = request.args.get("state", "").strip().upper()
     year_text = request.args.get("year", "").strip()
+    begin_date = request.args.get("beginDate", "").strip()
+    end_date = request.args.get("endDate", "").strip()
     oris_code = request.args.get("orisCode", "").strip()
 
     try:
@@ -38,11 +40,14 @@ def search():
     filters = {
         "stateCode": state_code,
         "orisCode": oris_code,
+        "beginDate": begin_date,
+        "endDate": end_date,
     }
 
     error = None
     records = []
     total = None
+    searched = request.args.get("search") == "1"
 
     if year_text:
         try:
@@ -53,7 +58,7 @@ def search():
         except ValueError:
             error = "Enter a valid four-digit reporting year."
 
-    if not error:
+    if searched and not error:
         try:
             result = fetch_dataset(
                 dataset=dataset,
@@ -87,4 +92,7 @@ def search():
         columns=columns,
         total=total,
         error=error,
+        begin_date=begin_date,
+        end_date=end_date,
+        searched=searched,
     )

@@ -9,3 +9,4 @@ from app.models.uploaded_file import UploadedFile
 from app.models.data_provenance import DataProvenance
 from app.models.dataset_metadata import DatasetMetadata
 from app.models.user import User
+from app.models.campd_record import CampdRecord

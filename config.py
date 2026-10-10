@@ -1,3 +1,15 @@
+"""Project-level compatibility wrapper for application configuration.
+
+The app instantiates configuration from ``app.config.Config``. Keeping a
+project-level ``Config`` re-export avoids import failures for scripts that
+expect a top-level configuration module.
+"""
+
+from app.config import Config
+
+__all__ = ["Config"]
+
+
 # Contains application figuration such as: 
 # database location, maximum upload size, secret key, 
 # allowed file extensions, and application settings. 
@@ -25,3 +37,4 @@ class Config:
         "xlsx",
         "xls"
     }
+

@@ -1,12 +1,23 @@
 # Handles the Data Explorer
 
-from flask import Blueprint, render_template, request
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+)
 
 from app.models import AnnualRecord, Unit, Facility
 
 from app.services.search_service import (
     apply_sorting,
     apply_ranking,
+)
+from app.services.campd_service import (
+    CAMPDServiceError,
+    EMISSION_DATASETS,
+    STATE_OPTIONS,
+    build_dataset_filters,
+    fetch_dataset_with_provenance,
 )
 
 explorer_bp = Blueprint(
@@ -42,6 +53,76 @@ def explorer():
     rank_mode = request.args.get("rank_mode", "").strip()
     rank_by = request.args.get("rank_by", "co2_mass").strip()
     rank_n = request.args.get("rank_n", 10, type=int)
+
+    page = request.args.get("page", 1, type=int)
+    campd_search = request.args.get("campd_search") == "1"
+    campd_dataset = request.args.get(
+        "campd_dataset",
+        "annual_facility",
+    ).strip()
+    campd_state = request.args.get("campd_state", state).strip().upper()
+    campd_year = request.args.get("campd_year", year).strip()
+    campd_oris_code = request.args.get("campd_oris_code", "").strip()
+    campd_page = request.args.get("campd_page", 1, type=int)
+    campd_per_page = request.args.get("campd_per_page", 50, type=int)
+    if campd_per_page not in (25, 50, 100, 500):
+        campd_per_page = 50
+
+    campd_records = []
+    campd_columns = []
+    campd_total = None
+    campd_error = None
+    if campd_search:
+        try:
+            if campd_state not in {code for code, _ in STATE_OPTIONS}:
+                raise CAMPDServiceError(
+                    "Choose a state before searching CAMPD."
+                )
+
+            if campd_dataset.startswith("hourly_"):
+                begin_date = request.args.get(
+                    "campd_begin_date",
+                    "",
+                ).strip()
+                end_date = request.args.get(
+                    "campd_end_date",
+                    "",
+                ).strip()
+                if not begin_date and campd_year.isdigit():
+                    begin_date = f"{campd_year}-01-01"
+                if not end_date and campd_year.isdigit():
+                    end_date = f"{int(campd_year) + 1}-01-01"
+            else:
+                begin_date = ""
+                end_date = ""
+
+            filters = build_dataset_filters(
+                dataset=campd_dataset,
+                state_code=campd_state,
+                year=campd_year,
+                begin_date=begin_date,
+                end_date=end_date,
+                oris_code=campd_oris_code,
+            )
+            api_result = fetch_dataset_with_provenance(
+                dataset=campd_dataset,
+                filters=filters,
+                page=max(campd_page, 1),
+                per_page=campd_per_page,
+            )
+            campd_records = [
+                record
+                for record in api_result["records"]
+                if isinstance(record, dict)
+            ]
+            campd_total = api_result["total"]
+            for record in campd_records:
+                if isinstance(record, dict):
+                    for key in record:
+                        if key not in campd_columns and len(campd_columns) < 12:
+                            campd_columns.append(key)
+        except CAMPDServiceError as exc:
+            campd_error = str(exc)
 
     # Numeric range filters
     min_gross_load = request.args.get("min_gross_load", "").strip()
@@ -88,10 +169,7 @@ def explorer():
     # -----------------------------
 
     if state:
-        query = query.filter(
-            Facility.state == state
-        )
-
+        query = query.filter(Facility.state == state)
 
     # -----------------------------
     # Unit
@@ -242,24 +320,7 @@ def explorer():
         )
     ]
 
-
-    states = [
-        row[0]
-        for row in (
-            Facility.query
-            .with_entities(
-                Facility.state
-            )
-            .filter(
-                Facility.state.isnot(None)
-            )
-            .distinct()
-            .order_by(
-                Facility.state
-            )
-            .all()
-        )
-    ]
+    years = sorted(set(years) | set(range(2015, 2025)), reverse=True)
 
 
     fuels = [
@@ -309,7 +370,6 @@ def explorer():
     # Sorting / Ranking / Pagination
     # -----------------------------
 
-    page = request.args.get("page", 1, type=int)
     per_page = 25
 
 
@@ -364,7 +424,6 @@ def explorer():
         pagination=pagination,
 
         years=years,
-        states=states,
         fuels=fuels,
         controls=controls,
 
@@ -399,5 +458,19 @@ def explorer():
         rank_mode=rank_mode,
         rank_by=rank_by,
         rank_n=rank_n,
+        campd_records=campd_records,
+        campd_columns=campd_columns,
+        campd_total=campd_total,
+        campd_error=campd_error,
+        campd_searched=campd_search,
+        campd_page=max(campd_page, 1),
+        campd_per_page=campd_per_page,
+        campd_datasets=EMISSION_DATASETS,
+        campd_states=STATE_OPTIONS,
+        campd_state=campd_state,
+        campd_year=campd_year,
+        campd_oris_code=campd_oris_code,
+        campd_begin_date=request.args.get("campd_begin_date", ""),
+        campd_end_date=request.args.get("campd_end_date", ""),
 
     )
