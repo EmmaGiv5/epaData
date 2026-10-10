@@ -18,7 +18,7 @@ url = (
 params = {
     "api_key": api_key,
     "stateCode": "AL|GA|KY|MI",
-    "beginDate": "2025-01-01",
+    "beginDate": "2015-01-01",
     "endDate": "2025-01-02",
     "page": 1,
     "perPage": 30,
