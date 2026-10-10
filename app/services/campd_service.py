@@ -3,7 +3,7 @@ import os
 from datetime import date
 
 import requests
-from dotenv import load_dotenv
+from dotenv import load_dotenv # loads the environment from .env file
 from sqlalchemy.exc import SQLAlchemyError
 
 load_dotenv()
@@ -45,63 +45,17 @@ EMISSION_DATASETS = {
 
 STATE_OPTIONS = (
     ("AL", "Alabama"),
-    ("AK", "Alaska"),
-    ("AZ", "Arizona"),
-    ("AR", "Arkansas"),
-    ("CA", "California"),
-    ("CO", "Colorado"),
-    ("CT", "Connecticut"),
-    ("DE", "Delaware"),
-    ("DC", "District of Columbia"),
-    ("FL", "Florida"),
     ("GA", "Georgia"),
-    ("HI", "Hawaii"),
-    ("ID", "Idaho"),
-    ("IL", "Illinois"),
-    ("IN", "Indiana"),
-    ("IA", "Iowa"),
-    ("KS", "Kansas"),
     ("KY", "Kentucky"),
-    ("LA", "Louisiana"),
-    ("ME", "Maine"),
-    ("MD", "Maryland"),
-    ("MA", "Massachusetts"),
-    ("MI", "Michigan"),
-    ("MN", "Minnesota"),
     ("MS", "Mississippi"),
-    ("MO", "Missouri"),
-    ("MT", "Montana"),
-    ("NE", "Nebraska"),
-    ("NV", "Nevada"),
-    ("NH", "New Hampshire"),
-    ("NJ", "New Jersey"),
-    ("NM", "New Mexico"),
-    ("NY", "New York"),
-    ("NC", "North Carolina"),
-    ("ND", "North Dakota"),
-    ("OH", "Ohio"),
-    ("OK", "Oklahoma"),
-    ("OR", "Oregon"),
-    ("PA", "Pennsylvania"),
-    ("RI", "Rhode Island"),
-    ("SC", "South Carolina"),
-    ("SD", "South Dakota"),
-    ("TN", "Tennessee"),
-    ("TX", "Texas"),
-    ("UT", "Utah"),
-    ("VT", "Vermont"),
-    ("VA", "Virginia"),
-    ("WA", "Washington"),
-    ("WV", "West Virginia"),
-    ("WI", "Wisconsin"),
-    ("WY", "Wyoming"),
+    ("TN", "Tennessee")
 )
 
 MIN_CAMPD_DATE = date(2015, 1, 1)
 MAX_CAMPD_DATE = date(2025, 1, 1)
 
 
-def build_dataset_filters(
+def build_dataset_filters( # validates search filters, NOT AUTHENTICATES
     dataset: str,
     state_code: str,
     year: str = "",
@@ -154,18 +108,18 @@ def build_dataset_filters(
             reporting_year = int(year)
         except (TypeError, ValueError) as exc:
             raise CAMPDServiceError(
-                "Choose a reporting year from 2015 through 2024."
+                "Choose a reporting year from 2015 through 2025."
             ) from exc
-        if not 2015 <= reporting_year <= 2024:
+        if not 2015 <= reporting_year <= 2025:
             raise CAMPDServiceError(
-                "Choose a reporting year from 2015 through 2024."
+                "Choose a reporting year from 2015 through 2025."
             )
         filters["year"] = reporting_year
 
     return filters
 
-
-def _api_key() -> str:
+ 
+def _api_key() -> str: # retrieves and validates the key from the environment
     key = os.getenv("CAMPD_API_KEY") or os.getenv("EPA_API_KEY")
     if not key:
         raise CAMPDServiceError(
@@ -174,7 +128,7 @@ def _api_key() -> str:
         )
     return key
 
-
+# Authentican process
 def fetch_dataset(
     dataset: str,
     filters: dict | None = None,
@@ -195,6 +149,7 @@ def fetch_dataset(
         for key, value in (filters or {}).items()
         if value is not None and value != ""
     }
+
     params.update({
         "api_key": _api_key(),
         "page": page,
@@ -210,7 +165,7 @@ def fetch_dataset(
             params=params,
             timeout=60,
         )
-        response.raise_for_status()
+        response.raise_for_status() # is there's an error 
         payload = response.json()
     except requests.RequestException as exc:
         raise CAMPDServiceError(
@@ -255,7 +210,7 @@ def fetch_dataset(
     }
 
 
-def fetch_dataset_with_provenance(
+def fetch_dataset_with_provenance( # calls the API and saves metadata about the retrieval, but not the records themselves
     dataset: str,
     filters: dict | None = None,
     page: int = 1,
@@ -332,7 +287,7 @@ def fetch_dataset_with_provenance(
     return result
 
 
-def filter_records(
+def filter_records( # searches records already retrieved from the API, without making a new request
     records: list[dict],
     query: str = "",
 ) -> list[dict]:
