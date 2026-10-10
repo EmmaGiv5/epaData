@@ -6,7 +6,6 @@ import os
 from flask import Flask, request, redirect, url_for, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from app.routes.campd import campd_bp
 
 db = SQLAlchemy()
 migrate = Migrate()
@@ -41,8 +40,6 @@ def create_app():
 
     app.register_blueprint(main_bp)
     app.register_blueprint(explorer_bp)
-    app.register_blueprint(campd_bp)
-
     # Require login before accessing protected pages
     ''' 
     @app.before_request

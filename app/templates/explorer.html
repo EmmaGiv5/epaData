@@ -45,26 +45,23 @@ Explorer | epaData
 
             <!-- State -->
 
-            <h3>State</h3>
+        <h3>State</h3>
 
-            <select name="state" id="state">
+        <select name="state" id="state">
+            <option value=""
+                {% if not selected_state %}selected{% endif %}>
+                All states
+            </option>
 
-                <option value="">
-                    All States
-                </option>
-
-                {% for state in states %}
-
+            {% for state_code, state_name in campd_states %}
                 <option
-                    value="{{ state }}"
-                    {% if selected_state == state %}selected{% endif %}
+                    value="{{ state_code }}"
+                    {% if selected_state == state_code %}selected{% endif %}
                 >
-                    {{ state }}
+                    {{ state_name }}
                 </option>
-
-                {% endfor %}
-
-            </select>
+            {% endfor %}
+        </select>
 
         </div>
 
@@ -496,9 +493,6 @@ Explorer | epaData
 
         </form>
 
-
-        <hr>
-    
     </div>
 
     <br><br>
@@ -638,10 +632,160 @@ Explorer | epaData
 
         </div>
     </div>
+        {% endif %}
 
-</div class="hero">
+    <br><br>
 
+    <div class="pages">
+        <h2>Live CAMPD search</h2>
+        <p>
+            Search EPA CAMPD by state and dataset. Results are retrieved
+            directly from the API one page at a time and are not stored
+            locally. Annual data covers 2015–2024; hourly date ranges must
+            stay within 2015-01-01 through 2025-01-01.
+        </p>
 
-{% endif %}
+        <form method="get" action="{{ url_for('explorer.explorer') }}">
+            <input type="hidden" name="campd_search" value="1">
+
+            <label for="campd_state">State:</label>
+            <select id="campd_state" name="campd_state" required>
+                <option value="">Choose a state</option>
+                {% for code, name in campd_states %}
+                    <option value="{{ code }}"
+                        {% if campd_state == code %}selected{% endif %}>
+                        {{ name }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <label for="campd_dataset">Dataset:</label>
+            <select id="campd_dataset" name="campd_dataset" required>
+                {% for key, label in campd_datasets.items() %}
+                    <option value="{{ key }}"
+                        {% if campd_dataset == key %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <label for="campd_oris_code">Facility ID (optional):</label>
+            <input
+                id="campd_oris_code"
+                name="campd_oris_code"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]+"
+                value="{{ campd_oris_code }}"
+            >
+
+            <label for="campd_year">Annual year / hourly default year:</label>
+            <select id="campd_year" name="campd_year">
+                <option value="">Choose year</option>
+                {% for year_option in range(2015, 2025) %}
+                    <option value="{{ year_option }}"
+                        {% if campd_year == year_option|string %}selected{% endif %}>
+                        {{ year_option }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <label for="campd_begin_date">Hourly start date:</label>
+            <input
+                id="campd_begin_date"
+                name="campd_begin_date"
+                type="date"
+                min="2015-01-01"
+                max="2024-12-31"
+                value="{{ campd_begin_date }}"
+            >
+
+            <label for="campd_end_date">Hourly end date:</label>
+            <input
+                id="campd_end_date"
+                name="campd_end_date"
+                type="date"
+                min="2015-01-02"
+                max="2025-01-01"
+                value="{{ campd_end_date }}"
+            >
+
+            <label for="campd_per_page">Rows per page:</label>
+            <select id="campd_per_page" name="campd_per_page">
+                {% for page_size in (25, 50, 100, 500) %}
+                    <option value="{{ page_size }}"
+                        {% if campd_per_page == page_size %}selected{% endif %}>
+                        {{ page_size }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <button type="submit">Search EPA CAMPD</button>
+        </form>
+
+        {% if campd_error %}
+            <p class="error" role="alert">{{ campd_error }}</p>
+        {% elif campd_searched %}
+            <h3>Live CAMPD results</h3>
+            <p>
+                EPA reports {{ campd_total }} matching record(s). Showing
+                {{ campd_records|length }} result(s) on page {{ campd_page }}.
+            </p>
+            {% if campd_records %}
+                <div style="overflow-x: auto;">
+                    <table border="1" cellpadding="5" cellspacing="0">
+                        <thead>
+                            <tr>
+                                {% for column in campd_columns %}
+                                    <th>{{ column }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in campd_records %}
+                                <tr>
+                                    {% for column in campd_columns %}
+                                        <td>{{ record.get(column, "") }}</td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% if campd_page > 1 %}
+                    <a href="{{ url_for(
+                        'explorer.explorer',
+                        campd_search=1,
+                        campd_state=campd_state,
+                        campd_dataset=campd_dataset,
+                        campd_year=campd_year,
+                        campd_oris_code=campd_oris_code,
+                        campd_begin_date=campd_begin_date,
+                        campd_end_date=campd_end_date,
+                        campd_per_page=campd_per_page,
+                        campd_page=campd_page - 1
+                    ) }}">Previous CAMPD page</a>
+                {% endif %}
+                {% if campd_records|length == campd_per_page %}
+                    <a href="{{ url_for(
+                        'explorer.explorer',
+                        campd_search=1,
+                        campd_state=campd_state,
+                        campd_dataset=campd_dataset,
+                        campd_year=campd_year,
+                        campd_oris_code=campd_oris_code,
+                        campd_begin_date=campd_begin_date,
+                        campd_end_date=campd_end_date,
+                        campd_per_page=campd_per_page,
+                        campd_page=campd_page + 1
+                    ) }}">Next CAMPD page</a>
+                {% endif %}
+            {% else %}
+                <p>No CAMPD records were returned for this page.</p>
+            {% endif %}
+        {% endif %}
+    </div>
+
+</div>
 
 {% endblock %}

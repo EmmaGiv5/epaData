@@ -49,6 +49,13 @@ from app.search_utils import (
     normalize_query,
     find_search_fields,
 )
+from app.services.campd_service import (
+    CAMPDServiceError,
+    EMISSION_DATASETS,
+    STATE_OPTIONS,
+    build_dataset_filters,
+    fetch_dataset_with_provenance,
+)
 
 
 main_bp = Blueprint("main", __name__)
@@ -672,6 +679,53 @@ def search():
 
     # Start with an empty list of results
     results = []
+    campd_records = []
+    campd_columns = []
+    campd_total = None
+    campd_error = None
+    campd_searched = request.args.get("campd_search") == "1"
+    campd_state = request.args.get("campd_state", "").strip().upper()
+    campd_dataset = request.args.get(
+        "campd_dataset",
+        "annual_facility",
+    ).strip()
+    campd_year = request.args.get("campd_year", "").strip()
+    campd_oris_code = request.args.get("campd_oris_code", "").strip()
+    campd_begin_date = request.args.get("campd_begin_date", "").strip()
+    campd_end_date = request.args.get("campd_end_date", "").strip()
+    campd_page = request.args.get("campd_page", 1, type=int)
+    campd_per_page = request.args.get("campd_per_page", 50, type=int)
+    if campd_per_page not in (25, 50, 100, 500):
+        campd_per_page = 50
+
+    if campd_searched:
+        try:
+            filters = build_dataset_filters(
+                dataset=campd_dataset,
+                state_code=campd_state,
+                year=campd_year,
+                begin_date=campd_begin_date,
+                end_date=campd_end_date,
+                oris_code=campd_oris_code,
+            )
+            api_result = fetch_dataset_with_provenance(
+                dataset=campd_dataset,
+                filters=filters,
+                page=max(campd_page, 1),
+                per_page=campd_per_page,
+            )
+            campd_records = [
+                record
+                for record in api_result["records"]
+                if isinstance(record, dict)
+            ]
+            campd_total = api_result["total"]
+            for record in campd_records:
+                for key in record:
+                    if key not in campd_columns and len(campd_columns) < 12:
+                        campd_columns.append(key)
+        except CAMPDServiceError as exc:
+            campd_error = str(exc)
 
     # --------------------------------------------------
     # 2. Search only if the user entered something
@@ -780,5 +834,20 @@ def search():
     return render_template(
         "search.html",
         results=results,
-        query=query
+        query=query,
+        campd_records=campd_records,
+        campd_columns=campd_columns,
+        campd_total=campd_total,
+        campd_error=campd_error,
+        campd_searched=campd_searched,
+        campd_state=campd_state,
+        campd_dataset=campd_dataset,
+        campd_datasets=EMISSION_DATASETS,
+        campd_states=STATE_OPTIONS,
+        campd_year=campd_year,
+        campd_oris_code=campd_oris_code,
+        campd_begin_date=campd_begin_date,
+        campd_end_date=campd_end_date,
+        campd_page=max(campd_page, 1),
+        campd_per_page=campd_per_page,
     )
