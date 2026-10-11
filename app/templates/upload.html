@@ -25,9 +25,9 @@ Upload | epaData
         {% endif %}
     {% endwith %}
 
+    <br><br>
 
     <section>
-
         <h2>1. Upload File</h2>
 
         <form
@@ -51,159 +51,160 @@ Upload | epaData
     </section>
 
 
-    {% if validation_results %}
+    <div class="pagesLight">
+        {% if validation_results %}
 
-        <section>
+            <section>
 
-            <h2>2. Validation Results</h2>
-
-            <p>
-                <strong>
-                    Total rows:
-                </strong>
-
-                {{ validation_results.row_count }}
-            </p>
-
-
-            <h3>Column Check</h3>
-
-            {% if validation_results.columns.missing_columns %}
+                <h2>2. Validation Results</h2>
 
                 <p>
-                    <strong>Missing columns:</strong>
+                    <strong>
+                        Total rows:
+                    </strong>
+
+                    {{ validation_results.row_count }}
                 </p>
 
-                <ul>
-                    {% for column in validation_results.columns.missing_columns %}
-                        <li>{{ column }}</li>
-                    {% endfor %}
-                </ul>
 
-            {% else %}
+                <h3>Column Check</h3>
 
-                <p>
-                    All required columns are present.
-                </p>
-
-            {% endif %}
-
-
-            <h3>Value Check</h3>
-
-            {% if validation_results.value_errors %}
-
-                <ul>
-
-                    {% for error in validation_results.value_errors %}
-
-                        <li>
-                            {{ error.column }} —
-                            {{ error.problem }} —
-                            {{ error.count }}
-                        </li>
-
-                    {% endfor %}
-
-                </ul>
-
-            {% else %}
-
-                <p>
-                    No invalid values were detected.
-                </p>
-
-            {% endif %}
-
-
-            <h3>Duplicate Check</h3>
-
-            {% if validation_results.duplicate_count > 0 %}
-
-                <p>
-                    Found
-                    {{ validation_results.duplicate_count }}
-                    duplicate records.
-                </p>
-
-            {% else %}
-
-                <p>
-                    No duplicate facility/unit/year
-                    records were detected.
-                </p>
-
-            {% endif %}
-
-
-            {% if preview %}
-
-                <h3>Data Preview</h3>
-
-                <div class="table-container">
-                    {{ preview|safe }}
-                </div>
-
-            {% endif %}
-
-
-            {% if validation_results.valid %}
-
-                <div class="success-box">
-
-                    <h3>Validation Passed</h3>
+                {% if validation_results.columns.missing_columns %}
 
                     <p>
-                        This file passed all validation checks.
+                        <strong>Missing columns:</strong>
                     </p>
 
-                    <form method="POST">
+                    <ul>
+                        {% for column in validation_results.columns.missing_columns %}
+                            <li>{{ column }}</li>
+                        {% endfor %}
+                    </ul>
 
-                        <input
-                            type="hidden"
-                            name="action"
-                            value="approve"
-                        >
-
-                        <input
-                            type="hidden"
-                            name="saved_filename"
-                            value="{{ saved_filename }}"
-                        >
-
-                        <input
-                            type="hidden"
-                            name="original_filename"
-                            value="{{ filename }}"
-                        >
-
-                        <button type="submit">
-                            Approve Import
-                        </button>
-
-                    </form>
-
-                </div>
-
-            {% else %}
-
-                <div class="error-box">
-
-                    <h3>File Failed Validation</h3>
+                {% else %}
 
                     <p>
-                        Correct the problems above
-                        before importing this file.
+                        All required columns are present.
                     </p>
 
-                </div>
+                {% endif %}
 
-            {% endif %}
 
-        </section>
+                <h3>Value Check</h3>
 
-    {% endif %}
+                {% if validation_results.value_errors %}
 
+                    <ul>
+
+                        {% for error in validation_results.value_errors %}
+
+                            <li>
+                                {{ error.column }} —
+                                {{ error.problem }} —
+                                {{ error.count }}
+                            </li>
+
+                        {% endfor %}
+
+                    </ul>
+
+                {% else %}
+
+                    <p>
+                        No invalid values were detected.
+                    </p>
+
+                {% endif %}
+
+
+                <h3>Duplicate Check</h3>
+
+                {% if validation_results.duplicate_count > 0 %}
+
+                    <p>
+                        Found
+                        {{ validation_results.duplicate_count }}
+                        duplicate records.
+                    </p>
+
+                {% else %}
+
+                    <p>
+                        No duplicate facility/unit/year
+                        records were detected.
+                    </p>
+
+                {% endif %}
+
+
+                {% if preview %}
+
+                    <h3>Data Preview</h3>
+
+                    <div class="table-container">
+                        {{ preview|safe }}
+                    </div>
+
+                {% endif %}
+
+
+                {% if validation_results.valid %}
+
+                    <div class="success-box">
+
+                        <h3>Validation Passed</h3>
+
+                        <p>
+                            This file passed all validation checks.
+                        </p>
+
+                        <form method="POST">
+
+                            <input
+                                type="hidden"
+                                name="action"
+                                value="approve"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="saved_filename"
+                                value="{{ saved_filename }}"
+                            >
+
+                            <input
+                                type="hidden"
+                                name="original_filename"
+                                value="{{ filename }}"
+                            >
+
+                            <button type="submit">
+                                Approve Import
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                {% else %}
+
+                    <div class="error-box">
+
+                        <h3>File Failed Validation</h3>
+
+                        <p>
+                            Correct the problems above
+                            before importing this file.
+                        </p>
+
+                    </div>
+
+                {% endif %}
+
+            </section>
+
+        {% endif %}
+    </div>
 </div>
 
 {% endblock %}

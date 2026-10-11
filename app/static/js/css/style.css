@@ -1,586 +1,700 @@
-/* Controls how your website looks. */ 
+
+/* ========================================
+   epaData — Shared Website Styles
+   ======================================== */
+
+/* ---------- Global styles ---------- */
+
 * {
     box-sizing: border-box;
 }
 
-.sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 250px;
-    height: 100vh;
-
-    background-color: #251101;
-    /*padding: 20px; */
-
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+:root {
+    --brown: #251101;
+    --brown-light: #3b2415;
+    --blue: #2d71bd;
+    --blue-light: #5688c7;
+    --background: #f4f7f6;
+    --white: #ffffff;
+    --text: #1f2933;
+    --muted: #6b7280;
+    --border: #dce2e7;
+    --shadow: 0 3px 10px rgba(0, 0, 0, 0.07);
+    --transition: 0.2s ease;
 }
 
-.sidebar a {
-    display: block;
-    margin-left: 25px;
-    color: white;
-    text-decoration: none;
-}
-
-.sidebar a:hover {
-    text-decoration: underline;
-}
-
-.sidebar > a:first-child {
-    align-self: center;
-}
-
-.sideText {
-    padding: 25px;
-}
-
-.logout {
-    position: fixed;
-    bottom: 0;
-    width: 250px;
-    height: 50px;
-    padding: 10px;
-    background-color: #2d71bdff;
-    font-size: 14px;
-    color: white;
+html {
+    scroll-behavior: smooth;
 }
 
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
-    background-color: #f4f7f6;
-    color: #1f2933;
+    font-family: Arial, Helvetica, sans-serif;
+    background-color: var(--background);
+    color: var(--text);
+    line-height: 1.6;
 }
 
-nav {
-    background-color: white;
-    padding: 15px 30px;
+a {
+    transition:
+        color var(--transition),
+        background-color var(--transition),
+        transform var(--transition);
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    width: 250px;
+    height: 100vh;
+    overflow-y: auto;
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    background-color: var(--brown);
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08);
+}
+
+.sidebar > a:first-child {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 15px 12px 5px;
+}
+
+.sidebar img {
+    display: block;
+    width: 200px;
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+    transition: transform var(--transition);
+}
+
+.sidebar > a:first-child:hover img {
+    transform: scale(1.03);
+}
+
+.sidebar a {
+    color: var(--white);
+    text-decoration: none;
+}
+
+.sideText {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    padding: 12px 16px 80px;
+}
+
+.sideText a {
+    display: block;
+    margin: 0;
+    padding: 11px 14px;
+    border-radius: 7px;
+    border-left: 3px solid transparent;
+    font-size: 15px;
+    line-height: 1.4;
+}
+
+.sideText a:hover,
+.sideText a:focus-visible {
+    background-color: var(--brown-light);
+    border-left-color: var(--blue-light);
+    padding-left: 18px;
+    outline: none;
+}
+
+/* Logout stays at the bottom of the sidebar. */
+
+.logout {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    min-height: 50px;
+    padding: 0;
+    background-color: var(--blue);
+    font-size: 14px;
+}
+
+.logout a {
     display: flex;
     align-items: center;
-    gap: 25px;
+    justify-content: center;
+    min-height: 50px;
+    padding: 12px;
+    font-weight: bold;
+}
+
+.logout:hover {
+    background-color: #245d99;
+}
+
+
+/* ---------- Top navigation ---------- */
+
+nav {
+    min-height: 82px;
+    margin-left: 250px;
+    padding: 16px 30px;
+
+    display: flex;
+    align-items: center;
+    gap: 20px;
+
+    background-color: var(--white);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.025);
+}
+
+nav > h1 {
+    margin: 0;
+    color: var(--brown);
+    font-size: 25px;
+    line-height: 1.3;
 }
 
 nav .welcome-bar {
     margin-left: auto;
-    font-size: 8px;
-    color: white;
-    background-color: #251101;
-    padding: 2px 70px;
-    border-radius: 10px;
+    padding: 9px 16px;
+    max-width: 100%;
+
+    color: var(--white);
+    background-color: var(--brown);
+    border-radius: 8px;
+}
+
+nav .welcome-bar h1 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: normal;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
 }
 
 nav a {
-    color: #251101;
+    color: var(--brown);
     text-decoration: none;
     font-size: 15px;
 }
 
 nav a:hover {
-    text-decoration: underline;
+    color: var(--blue);
 }
+
+
+/* ---------- Main content ---------- */
 
 main {
-    max-width: 1100px;
-    margin: 40px auto;
-    padding: 0 20px;
+    width: auto;
+    max-width: 1500px;
+    min-width: 0;
+    margin: 30px 0 0 250px;
+    padding: 0 30px;
 }
 
+/* Consistent spacing between page sections. */
+
+main > * + * {
+    margin-top: 24px;
+}
+
+h1,
+h2,
+h3,
+h4 {
+    line-height: 1.3;
+}
+
+h2,
+h3,
+h4 {
+    color: var(--brown);
+}
+
+p {
+    line-height: 1.65;
+}
+
+
+/* ---------- Existing hero section ---------- */
+
 .hero {
-    background: white;
-    padding: 60px 40px;
+    padding: 50px 40px;
+    background-color: var(--white);
+    border: 1px solid rgba(37, 17, 1, 0.05);
     border-radius: 10px;
     text-align: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: var(--shadow);
 }
 
 .hero h1 {
-    color: #251101;
-    font-size: 42px;
-    margin-bottom: 10px;
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: var(--brown);
+    font-size: clamp(28px, 3vw, 42px);
 }
 
 .hero p {
-    font-size: 18px;
     color: #52616b;
+    font-size: 17px;
 }
 
+
+/* ---------- Existing dark pages section ---------- */
+
 .pages {
-    background: #251101;
-    padding: 60px 40px;
+    padding: 45px 35px;
+    background-color: var(--brown);
     border-radius: 10px;
     text-align: left;
-    color: #5688C7;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    color: var(--blue-light);
+    box-shadow: var(--shadow);
+}
+
+.pagesLight {
+    padding: 45px 35px;
+    background-color: white;
+    border-radius: 10px;
+    text-align: left;
+    color: var(--blue-light);
+    box-shadow: var(--shadow);
 }
 
 .pages h1 {
-    color: #5688C7;
-    font-size: 42px;
-    margin-bottom: 10px;
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: var(--blue-light);
+    font-size: clamp(28px, 3vw, 40px);
+}
+
+.pages h2,
+.pages h3 {
+    color: var(--white);
 }
 
 .pages p {
-    font-size: 18px;
-    color: white;
+    color: var(--white);
+    font-size: 16px;
 }
 
+
+/* ---------- Buttons ---------- */
 
 .buttons {
-    margin-top: 30px;
-}
-
-.button {
-    display: inline-block;
-    padding: 12px 22px;
-    margin: 5px;
-    background-color: #251101;
-    color: white;
-    text-decoration: none;
-    border-radius: 6px;
-}
-
-.button:hover {
-    background-color: #251101;
-}
-
-footer {
-    text-align: center;
-    color: #6b7280;
-    padding: 30px;
-    margin-top: 50px;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*  ------------------------------------
-    OLD CSS
-    CAN REIMPLEMENT 
-    LATER
-    ------------------------------------
-*/
-
-/*
-
-* {
-    box-sizing: border-box;
-}
-
-
-body {
-    margin: 0;
-
-    font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
-
-    background-color: #f4f7f9;
-    color: #222;
-}
-
-
-/* Navigation */
-
-/*
-
-.navbar {
-    background-color: #17324d;
-    color: white;
-}
-
-
-.nav-container {
-    max-width: 1200px;
-
-    margin: 0 auto;
-
-    padding: 15px 20px;
-
     display: flex;
-
-    justify-content: space-between;
-
+    justify-content: center;
     align-items: center;
-}
-
-
-.logo {
-    color: white;
-
-    text-decoration: none;
-
-    font-size: 24px;
-
-    font-weight: bold;
-}
-
-
-.nav-links {
-    display: flex;
-
+    flex-wrap: wrap;
     gap: 20px;
-}
-
-
-.nav-links a {
-    color: white;
-
-    text-decoration: none;
-
-    font-size: 15px;
-}
-
-
-.nav-links a:hover {
-    text-decoration: underline;
-}
-
-*/
-
-/* Main container */
-
-/*
-
-.container {
-    max-width: 1200px;
-
-    margin: 0 auto;
-
-    padding: 40px 20px;
-}
-
-*/
-
-
-/* Hero */
-
-/*
-
-.hero {
-    background-color: white;
-
-    padding: 50px;
-
-    border-radius: 10px;
-
-    margin-bottom: 30px;
-
-    box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-
-.hero h1 {
-    color: #17324d;
-
-    font-size: 42px;
-
-    margin-bottom: 10px;
-}
-
-
-.hero h2 {
-    font-size: 24px;
-
-    font-weight: normal;
-
-    color: #40576d;
-}
-
-
-.hero p {
-    font-size: 18px;
-
-    line-height: 1.6;
-}
-
-*/
-
-
-/* Project information */
-
-/*
-
-.project-info {
-    background-color: white;
-
-    padding: 30px;
-
-    border-radius: 10px;
-
-    margin-bottom: 30px;
-
-    box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-
-.project-info h2,
-.features h2 {
-    color: #17324d;
-}
-
-*/
-
-
-/* Feature cards */
-
-/*
-
-.feature-grid {
-    display: grid;
-
-    grid-template-columns:
-        repeat(2, 1fr);
-
-    gap: 20px;
-}
-
-
-.feature-card {
-    background-color: white;
-
-    padding: 25px;
-
-    border-radius: 10px;
-
-    box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-
-.feature-card h3 {
-    color: #1c6b4f;
-}
-
-*/
-
-/* Footer */
-
-/*
-
-footer {
-    background-color: #17324d;
-
-    color: white;
-
-    text-align: center;
-
-    padding: 20px;
-
-    margin-top: 50px;
-}
-
-*/
-
-
-/* Mobile */
-
-/*
-
-@media (max-width: 700px) {
-
-    .nav-container {
-        flex-direction: column;
-
-        gap: 15px;
-    }
-
-
-    .nav-links {
-        flex-wrap: wrap;
-
-        justify-content: center;
-    }
-
-
-    .feature-grid {
-        grid-template-columns: 1fr;
-    }
-
-
-    .hero {
-        padding: 30px;
-    }
-
-}
-
-*/
-
-/* Upload page */
-
-/*
-
-.page-header {
-    margin-bottom: 30px;
-}
-
-
-.upload-card {
-    background-color: white;
-
-    padding: 30px;
-
-    border-radius: 10px;
-
-    box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.08);
-
-    margin-bottom: 30px;
-}
-
-
-.form-group {
-    margin-bottom: 20px;
-}
-
-
-.form-group label {
-    display: block;
-
-    font-weight: bold;
-
-    margin-bottom: 8px;
-}
-
-
-.form-group input {
-    padding: 10px;
-
-    border: 1px solid #ccc;
-
-    border-radius: 5px;
-
     width: 100%;
+    margin: 25px auto;
 }
-
 
 .button {
-    background-color: #1c6b4f;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
 
-    color: white;
+    padding: 11px 20px;
+    margin: 4px 0;
 
-    border: none;
+    background-color: var(--brown);
+    color: var(--white);
+    border: 1px solid transparent;
+    border-radius: 6px;
 
-    padding: 12px 20px;
-
-    border-radius: 5px;
-
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 600;
     cursor: pointer;
 
-    font-size: 15px;
+    transition:
+        background-color var(--transition),
+        box-shadow var(--transition),
+        transform var(--transition);
 }
-
 
 .button:hover {
-    background-color: #15543e;
+    background-color: var(--blue);
+    color: var(--white);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.14);
+    transform: translateY(-1px);
 }
 
+.button:active {
+    transform: translateY(0);
+}
+
+.button:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 3px solid var(--blue-light);
+    outline-offset: 3px;
+}
+
+
+/* ---------- Forms and inputs ---------- */
+
+/* These styles improve forms without changing their HTML structure. */
+
+form {
+    min-width: 0;
+}
+
+label {
+    display: inline-block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    color: var(--brown);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]),
+select,
+textarea {
+    max-width: 100%;
+    padding: 10px 12px;
+
+    color: var(--text);
+    background-color: var(--white);
+    border: 1px solid #cbd3da;
+    border-radius: 6px;
+
+    transition:
+        border-color var(--transition),
+        box-shadow var(--transition);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 3px rgba(45, 113, 189, 0.12);
+}
+
+textarea {
+    resize: vertical;
+}
+
+input[type="submit"],
+button {
+    cursor: pointer;
+}
+
+/* Keep form controls usable in narrower containers. */
+
+form input:not([type="checkbox"]):not([type="radio"]),
+form select,
+form textarea {
+    max-width: 100%;
+}
+
+
+/* ---------- Cards and common content panels ---------- */
+
+/* These apply to existing elements using these class names. */
+
+.card,
+.upload-card,
+.project-info,
+.feature-card,
+.summary {
+    min-width: 0;
+    padding: 24px;
+    margin-bottom: 22px;
+
+    background-color: var(--white);
+    border: 1px solid rgba(37, 17, 1, 0.06);
+    border-radius: 9px;
+    box-shadow: var(--shadow);
+}
+
+.card h2,
+.upload-card h2,
+.project-info h2,
+.feature-card h3,
+.summary h2 {
+    margin-top: 0;
+}
 
 .help-text {
-    color: #666;
-
+    margin-bottom: 18px;
+    color: var(--muted);
     font-size: 14px;
-
-    margin-bottom: 20px;
 }
 
+
+/* ---------- Tables ---------- */
+
+table,
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: var(--white);
+}
+
+.data-table th,
+.data-table td,
+table th,
+table td {
+    padding: 11px 13px;
+    border: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+}
+
+.data-table th,
+table th {
+    background-color: var(--brown);
+    color: var(--white);
+    font-weight: 600;
+}
+
+.data-table tbody tr:nth-child(even),
+table tbody tr:nth-child(even) {
+    background-color: #f8fafb;
+}
+
+.data-table tbody tr:hover,
+table tbody tr:hover {
+    background-color: #edf4fb;
+}
+
+/* Allow wide data tables to scroll instead of breaking the page. */
+
+.table-container,
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 7px;
+}
+
+
+/* ---------- Messages and validation ---------- */
 
 .message {
-    padding: 20px;
-
-    border-radius: 8px;
-
+    padding: 16px 20px;
     margin-bottom: 20px;
+    border-radius: 7px;
 }
-
 
 .message.error {
     background-color: #fdecec;
-
     border-left: 5px solid #c0392b;
 }
 
-
 .message.success {
     background-color: #eaf7ef;
-
-    border-left: 5px solid #1c6b4f;
+    border-left: 5px solid #27834a;
 }
-
 
 .valid {
-    color: #1c6b4f;
-
+    color: #27834a;
     font-weight: bold;
 }
-
 
 .invalid {
     color: #c0392b;
-
     font-weight: bold;
 }
 
 
-.validation-results {
-    margin-top: 30px;
+/* ---------- Footer ---------- */
+
+footer {
+    margin: 45px 0 0 250px;
+    padding: 24px 30px;
+
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    text-align: center;
+    font-size: 13px;
 }
 
 
-.summary {
-    background-color: white;
+/* ---------- Responsive layout ---------- */
 
-    padding: 20px;
+@media (max-width: 900px) {
+    nav {
+        padding: 15px 20px;
+    }
 
-    border-radius: 8px;
+    nav > h1 {
+        font-size: 22px;
+    }
 
-    margin-bottom: 20px;
+    nav .welcome-bar {
+        padding: 8px 11px;
+    }
+
+    main {
+        padding: 0 20px;
+    }
+
+    .hero {
+        padding: 35px 25px;
+    }
+
+    .pages {
+        padding: 35px 25px;
+    }
 }
 
+@media (max-width: 700px) {
+    /* Retain the sidebar while making it narrower. */
 
-.data-table {
-    width: 100%;
+    .sidebar {
+        width: 175px;
+    }
 
-    border-collapse: collapse;
+    .sidebar > a:first-child {
+        margin: 12px 8px;
+    }
 
-    background-color: white;
+    .sideText {
+        padding: 8px 10px 75px;
+    }
+
+    .sideText a {
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    .logout {
+        width: 175px;
+    }
+
+    nav {
+        margin-left: 175px;
+        padding: 14px;
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    nav > h1 {
+        font-size: 20px;
+    }
+
+    nav .welcome-bar {
+        margin-left: 0;
+        padding: 7px 10px;
+    }
+
+    main {
+        margin-left: 175px;
+        margin-top: 22px;
+        padding: 0 14px;
+    }
+
+    footer {
+        margin-left: 175px;
+        padding: 20px 12px;
+        font-size: 12px;
+    }
+
+    .hero,
+    .pages {
+        padding: 25px 18px;
+    }
+
+    .card,
+    .upload-card,
+    .project-info,
+    .feature-card,
+    .summary {
+        padding: 18px;
+    }
+
+    .buttons {
+        align-items: stretch;
+    }
+
+    .button {
+        max-width: 100%;
+    }
 }
 
+@media (max-width: 480px) {
+    .sidebar {
+        width: 145px;
+    }
 
-.data-table th,
-.data-table td {
-    border: 1px solid #ddd;
+    .sidebar img {
+        width: 135px;
+    }
 
-    padding: 8px;
+    .sideText {
+        padding-right: 7px;
+        padding-left: 7px;
+    }
 
-    text-align: left;
+    .sideText a {
+        font-size: 12px;
+        overflow-wrap: anywhere;
+    }
+
+    .logout {
+        width: 145px;
+    }
+
+    nav,
+    main,
+    footer {
+        margin-left: 145px;
+    }
+
+    nav {
+        padding: 12px 10px;
+    }
+
+    nav > h1 {
+        font-size: 17px;
+    }
+
+    nav .welcome-bar h1 {
+        font-size: 11px;
+    }
+
+    main {
+        padding: 0 10px;
+    }
+
+    .hero,
+    .pages {
+        padding: 20px 14px;
+    }
+
+    .hero h1,
+    .pages h1 {
+        font-size: 25px;
+    }
 }
 
-
-.data-table th {
-    background-color: #17324d;
-
-    color: white;
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+    }
 }
-
-*/
-

@@ -23,7 +23,7 @@ Data Download | epaData
         if form_data is defined else "local_all" %}
 
     <form method="post" action="{{ url_for('download.export_download') }}">
-        <div class="pages">
+        <div class="pagesLight">
             <h2>Dataset and file type</h2>
 
             <label for="dataset">Dataset:</label>
@@ -68,7 +68,7 @@ Data Download | epaData
 
         <br>
 
-        <div class="pages" id="local-filters">
+        <div class="pagesLight" id="local-filters">
             <h2>Local annual-record filters</h2>
             <p>
                 These filters apply to local annual emissions records. Leave a
@@ -167,7 +167,7 @@ Data Download | epaData
 
         <br>
 
-        <div class="pages" id="campd-filters">
+        <div class="pagesLight" id="campd-filters">
             <h2>Live CAMPD filters</h2>
             <p>
                 Live CAMPD downloads contain one API page only. Choose a
@@ -249,7 +249,7 @@ Data Download | epaData
 
         <br>
 
-        <div class="pages" id="provenance-note">
+        <div class="pagesLight" id="provenance-note">
             <h2>Retrieval history export</h2>
             <p>
                 This option downloads the saved CAMPD request history,

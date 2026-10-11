@@ -22,8 +22,10 @@ Home | epaData
         visualizing environmental and
         power-sector data.
     </p>
-    <br>
 
+</section>
+
+<section class="hero">
     <h2>Project Overview</h2>
 
     <p>
@@ -47,25 +49,47 @@ Home | epaData
 <section class="hero">
     <h2>System Functions</h2>
 
+    <br><br>
+
+    <div class="buttons"> 
+        <a class="button" href="{{ url_for('main.search') }}"> 
+            Search Database 
+        </a> 
+        <a class="button" href="{{ url_for('explorer.explorer') }}"> 
+            Data Explorer 
+        </a> 
+        <a class="button" href="{{ url_for('main.upload') }}"> 
+            Upload Data 
+        </a> 
+        <a class="button" href="{{ url_for('download.download_page') }}"> 
+            Data Download 
+        </a> 
+    </div>
+
+    <br><br><br>
+
     <div class="feature-grid">
 
         <div class="feature-card">
-            <h3>EPA Data Retrieval</h3>
-            <p>
-                Retrieve or import data from EPA
-                sources such as CAMPD.
-            </p>
+            <h3>Search Database Functions</h3>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>Basic Search</h3>
+                    <p>Find records by keywords or facility details.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3>Advanced Search</h3>
+                    <p>Combine filters and numeric comparisons.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3>Live EPA Search</h3>
+                    <p>Query CAMPD directly through the EPA API.</p>
+                </div>
+            </div>
         </div>
-
-
-        <div class="feature-card">
-            <h3>Data Upload</h3>
-            <p>
-                Upload CSV and Excel files and
-                validate their contents.
-            </p>
-        </div>
-
 
         <div class="feature-card">
             <h3>Data Explorer</h3>
@@ -75,69 +99,6 @@ Home | epaData
             </p>
         </div>
 
-
-        <div class="feature-card">
-            <h3>Data Download</h3>
-            <p>
-                Download datasets and search results
-                as CSV files.
-            </p>
-        </div>
-
-    </div>
-
-    <div class="buttons">
-    <a class="button" href="{{ url_for('explorer.explorer') }}">
-        Data Explorer
-    </a>
-
-    <a class="button" href="{{ url_for('main.upload') }}">
-        Upload Data
-    </a>
-
-    <a class="button" href="{{ url_for('main.search') }}">
-        Search Database
-    </a>    
-</section>
-
-<!-- 
-<section class="project-info">
-
-    <h2>Project Overview</h2>
-
-    <p>
-        epaData is designed to collect, store,
-        manage, search, evaluate, and visualize
-        environmental and power-sector data
-        obtained from the U.S. Environmental
-        Protection Agency.
-    </p>
-
-    <p>
-        The system uses Flask for the web
-        application and SQLite for the database.
-    </p>
-
-    
-
-</section>
-
-
-<section class="features">
-
-    <h2>System Functions</h2>
-
-    <div class="feature-grid">
-
-        <div class="feature-card">
-            <h3>EPA Data Retrieval</h3>
-            <p>
-                Retrieve or import data from EPA
-                sources such as CAMPD.
-            </p>
-        </div>
-
-
         <div class="feature-card">
             <h3>Data Upload</h3>
             <p>
@@ -146,16 +107,6 @@ Home | epaData
             </p>
         </div>
 
-
-        <div class="feature-card">
-            <h3>Data Explorer</h3>
-            <p>
-                Search, filter, sort, and explore
-                environmental data.
-            </p>
-        </div>
-
-
         <div class="feature-card">
             <h3>Data Download</h3>
             <p>
@@ -163,24 +114,7 @@ Home | epaData
                 as CSV files.
             </p>
         </div>
-
-    </div>
-
-    <div class="buttons">
-    <a class="button" href="{{ url_for('explorer.explorer') }}">
-        Data Explorer
-    </a>
-
-    <a class="button" href="{{ url_for('main.upload') }}">
-        Upload Data
-    </a>
-
-    <a class="button" href="{{ url_for('main.search') }}">
-        Search Database
-    </a>
-</div>
-
+    </div> 
 </section>
--->
 
 {% endblock %}
