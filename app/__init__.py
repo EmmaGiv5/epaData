@@ -37,9 +37,12 @@ def create_app():
     # Register blueprints
     from .routes.main import main_bp
     from .routes.explorer import explorer_bp
+    from .routes.download import download_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(explorer_bp)
+    app.register_blueprint(download_bp)
+
     # Require login before accessing protected pages
     ''' 
     @app.before_request

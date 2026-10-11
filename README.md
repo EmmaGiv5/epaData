@@ -12,10 +12,10 @@
 ## Live CAMPD searches
 
 The existing Search Database and Data Explorer pages can make on-demand,
-single-page searches against EPA CAMPD for any U.S. state or the District of
-Columbia. Choose a CAMPD dataset, state, optional facility ID for a
-by-facility dataset, and (where required) year or date range. Annual searches
-are limited to 2015–2024; hourly searches must remain
+single-page searches against EPA CAMPD for Alabama, Georgia, Kentucky,
+Mississippi, and Tennessee. Choose a CAMPD dataset, state, optional facility
+ID for a by-facility dataset, and (where required) year or date range. Annual
+searches currently accept 2015–2025; hourly searches must remain
 within 2015-01-01 through 2025-01-01. Results are displayed from the live API
 response and are not imported into or saved in the local database. Each
 successful page retrieval is recorded in `datasets` and `data_provenance`
@@ -29,6 +29,18 @@ Configure the EPA CAMPD key on the server as `CAMPD_API_KEY` (or
 the server to EPA and is never included in page markup. The live search needs
 network access and a valid key; normal local database searches continue to
 work independently.
+
+## Data downloads
+
+The Data Download page exports local annual-emissions records, one selected
+uploaded dataset's annual-emissions records, CAMPD retrieval provenance, or
+one page from a live CAMPD emissions request. Local annual records can be
+filtered by state, year, facility, unit, fuel, unit type, control technology,
+and numeric ranges. Live CAMPD filters depend on the endpoint and support a
+state, year or hourly date range, and optional facility ID for by-facility
+endpoints. Downloads are currently CSV only. Invalid-upload rows are not
+offered because the application does not currently retain a downloadable
+invalid-record report.
 
 # Requirements
 

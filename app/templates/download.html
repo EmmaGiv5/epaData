@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+
+{% block title %}
+Data Download | epaData
+{% endblock %}
+
+{% block content %}
+
+<div class="hero">
+    <h1>Data Download</h1>
+    <p>
+        Choose a dataset, add any filters you need, and download the matching
+        records as a CSV file.
+    </p>
+
+    {% if error %}
+        <div class="pages" role="alert">
+            <p class="error">{{ error }}</p>
+        </div>
+    {% endif %}
+
+    {% set selected_dataset = form_data.get("dataset", "local_all")
+        if form_data is defined else "local_all" %}
+
+    <form method="post" action="{{ url_for('download.export_download') }}">
+        <div class="pages">
+            <h2>Dataset and file type</h2>
+
+            <label for="dataset">Dataset:</label>
+            <select id="dataset" name="dataset" required>
+                <optgroup label="Data in this application">
+                    <option value="local_all"
+                        {% if selected_dataset == "local_all" %}selected{% endif %}>
+                        All local annual emissions records
+                    </option>
+                    {% for dataset in local_datasets %}
+                        <option value="local_dataset:{{ dataset.id }}"
+                            {% if selected_dataset == "local_dataset:" ~ dataset.id|string %}selected{% endif %}>
+                            {{ dataset.dataset_name }}
+                            ({{ dataset.data_source }})
+                        </option>
+                    {% endfor %}
+                    <option value="provenance"
+                        {% if selected_dataset == "provenance" %}selected{% endif %}>
+                        CAMPD retrieval history (provenance)
+                    </option>
+                </optgroup>
+                <optgroup label="Live CAMPD data">
+                    {% for key, label in campd_datasets.items() %}
+                        <option value="{{ key }}"
+                            {% if selected_dataset == key %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                    {% endfor %}
+                </optgroup>
+            </select>
+
+            <br><br>
+
+            <label for="format">File format:</label>
+            <select id="format" name="format" required>
+                <option value="csv" selected>CSV (.csv)</option>
+            </select>
+            <p>
+                CSV is the currently supported download format.
+            </p>
+        </div>
+
+        <br>
+
+        <div class="pages" id="local-filters">
+            <h2>Local annual-record filters</h2>
+            <p>
+                These filters apply to local annual emissions records. Leave a
+                field blank when you do not want to use it.
+            </p>
+
+            <label for="state">State:</label>
+            <select id="state" name="state">
+                <option value="">All states</option>
+                {% for state in local_states %}
+                    <option value="{{ state }}"
+                        {% if form_data is defined and form_data.get("state") == state %}selected{% endif %}>
+                        {{ state }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <label for="year">Reporting year:</label>
+            <input
+                id="year"
+                name="year"
+                type="number"
+                min="1900"
+                max="2100"
+                value="{{ form_data.get('year', '') if form_data is defined else '' }}"
+            >
+
+            <label for="facility_id">EPA facility ID:</label>
+            <input
+                id="facility_id"
+                name="facility_id"
+                type="text"
+                value="{{ form_data.get('facility_id', '') if form_data is defined else '' }}"
+            >
+
+            <label for="unit_id">Unit ID:</label>
+            <input
+                id="unit_id"
+                name="unit_id"
+                type="text"
+                value="{{ form_data.get('unit_id', '') if form_data is defined else '' }}"
+            >
+
+            <label for="fuel">Primary fuel contains:</label>
+            <input
+                id="fuel"
+                name="fuel"
+                type="text"
+                value="{{ form_data.get('fuel', '') if form_data is defined else '' }}"
+            >
+
+            <label for="unit_type">Unit type contains:</label>
+            <input
+                id="unit_type"
+                name="unit_type"
+                type="text"
+                value="{{ form_data.get('unit_type', '') if form_data is defined else '' }}"
+            >
+
+            <label for="control">Control technology contains:</label>
+            <input
+                id="control"
+                name="control"
+                type="text"
+                value="{{ form_data.get('control', '') if form_data is defined else '' }}"
+            >
+
+            <h3>Optional numeric ranges</h3>
+            {% for field, label in (
+                ("operating_time", "Operating time"),
+                ("gross_load", "Gross load"),
+                ("heat_input", "Heat input"),
+                ("co2_mass", "CO2 mass"),
+                ("so2_mass", "SO2 mass"),
+                ("nox_mass", "NOx mass")
+            ) %}
+                <label for="min_{{ field }}">{{ label }} minimum:</label>
+                <input
+                    id="min_{{ field }}"
+                    name="min_{{ field }}"
+                    type="number"
+                    step="any"
+                    value="{{ form_data.get('min_' ~ field, '') if form_data is defined else '' }}"
+                >
+                <label for="max_{{ field }}">{{ label }} maximum:</label>
+                <input
+                    id="max_{{ field }}"
+                    name="max_{{ field }}"
+                    type="number"
+                    step="any"
+                    value="{{ form_data.get('max_' ~ field, '') if form_data is defined else '' }}"
+                >
+                <br>
+            {% endfor %}
+        </div>
+
+        <br>
+
+        <div class="pages" id="campd-filters">
+            <h2>Live CAMPD filters</h2>
+            <p>
+                Live CAMPD downloads contain one API page only. Choose a
+                supported state and dataset. Results are fetched directly
+                from EPA; the API key is never sent to the browser.
+            </p>
+
+            <label for="campd_state">State:</label>
+            <select id="campd_state" name="campd_state">
+                <option value="">Choose a state</option>
+                {% for code, name in campd_states %}
+                    <option value="{{ code }}"
+                        {% if form_data is defined and form_data.get("campd_state") == code %}selected{% endif %}>
+                        {{ name }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <label for="campd_year">Annual reporting year:</label>
+            <select id="campd_year" name="campd_year">
+                <option value="">Choose a year</option>
+                {% for year_option in range(2015, 2026) %}
+                    <option value="{{ year_option }}"
+                        {% if form_data is defined and form_data.get("campd_year") == year_option|string %}selected{% endif %}>
+                        {{ year_option }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <label for="begin_date">Hourly start date:</label>
+            <input
+                id="begin_date"
+                name="begin_date"
+                type="date"
+                min="2015-01-01"
+                max="2024-12-31"
+                value="{{ form_data.get('begin_date', '') if form_data is defined else '' }}"
+            >
+
+            <label for="end_date">Hourly end date:</label>
+            <input
+                id="end_date"
+                name="end_date"
+                type="date"
+                min="2015-01-02"
+                max="2025-01-01"
+                value="{{ form_data.get('end_date', '') if form_data is defined else '' }}"
+            >
+
+            <label for="campd_facility_id">Facility ID (by-facility only):</label>
+            <input
+                id="campd_facility_id"
+                name="campd_facility_id"
+                type="text"
+                inputmode="numeric"
+                pattern="[0-9]*"
+                value="{{ form_data.get('campd_facility_id', '') if form_data is defined else '' }}"
+            >
+
+            <label for="campd_page">API page:</label>
+            <input
+                id="campd_page"
+                name="campd_page"
+                type="number"
+                min="1"
+                value="{{ form_data.get('campd_page', '1') if form_data is defined else '1' }}"
+            >
+
+            <label for="campd_per_page">Rows per API page:</label>
+            <select id="campd_per_page" name="campd_per_page">
+                {% for page_size in (25, 50, 100, 500) %}
+                    <option value="{{ page_size }}"
+                        {% if form_data is defined and form_data.get("campd_per_page", "50") == page_size|string %}selected{% elif not form_data is defined and page_size == 50 %}selected{% endif %}>
+                        {{ page_size }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <br>
+
+        <div class="pages" id="provenance-note">
+            <h2>Retrieval history export</h2>
+            <p>
+                This option downloads the saved CAMPD request history,
+                including its source, retrieval time, filters, and returned
+                record count. It does not include emission records.
+            </p>
+        </div>
+
+        <br>
+
+        <button type="submit">Create CSV download</button>
+    </form>
+</div>
+
+<script>
+    const datasetSelect = document.getElementById("dataset");
+    const localFilters = document.getElementById("local-filters");
+    const campdFilters = document.getElementById("campd-filters");
+    const provenanceNote = document.getElementById("provenance-note");
+    const campdState = document.getElementById("campd_state");
+    const campdYear = document.getElementById("campd_year");
+    const beginDate = document.getElementById("begin_date");
+    const endDate = document.getElementById("end_date");
+    const campdFacilityId = document.getElementById("campd_facility_id");
+
+    function updateDatasetFields() {
+        const value = datasetSelect.value;
+        const isCampd = value.startsWith("hourly_")
+            || value.startsWith("annual_");
+        const isAnnual = value.startsWith("annual_");
+        const isHourly = value.startsWith("hourly_");
+        const isLocal = value === "local_all"
+            || value.startsWith("local_dataset:");
+        const isFacilityDataset = value.endsWith("_facility");
+        const isProvenance = value === "provenance";
+
+        localFilters.hidden = !isLocal;
+        campdFilters.hidden = !isCampd;
+        provenanceNote.hidden = !isProvenance;
+
+        campdState.required = isCampd;
+        campdYear.required = isAnnual;
+        beginDate.required = isHourly;
+        endDate.required = isHourly;
+        campdFacilityId.disabled = !isFacilityDataset;
+        campdYear.disabled = !isAnnual;
+        beginDate.disabled = !isHourly;
+        endDate.disabled = !isHourly;
+    }
+
+    datasetSelect.addEventListener("change", updateDatasetFields);
+    updateDatasetFields();
+</script>
+
+{% endblock %}
