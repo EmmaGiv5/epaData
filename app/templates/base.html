@@ -15,7 +15,7 @@
 
     <!-- top navigation -->
     <nav>
-        <h1>Data Overview</h1>
+        <h1>{% block header %}Data Overview{% endblock %}</h1>
         <div class="welcome-bar">
             <!-- *** Can add a variable for the username HERE *** -->
             {% if session.get("user_id") %} 

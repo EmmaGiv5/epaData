@@ -4,415 +4,54 @@
 Search | epaData
 {% endblock %}
 
+{% block header %}Search{% endblock %}
+
 {% block content %}
 
-<div class="hero">
-
+<section class="hero">
     <h1>Search epaData</h1>
-    <p>Search the database, combine advanced filters, or query EPA CAMPD live.</p>
 
-    <!-- ================================================== -->
-    <!-- 1. BASIC AND DESCRIPTION-BASED SEARCH               -->
-    <!-- ================================================== -->
+    <p>
+        Choose a search method to explore environmental
+        and power-sector data.
+    </p>
 
-    <div class="pagesLight">
-        <h2>Basic &amp; Description-Based Search</h2>
+    <div class="feature-grid">
 
-        <p>
-            Search by facility, unit, state, reporting year, or fuel.
-            You can also describe the records you're looking for.
-        </p>
-
-        <form method="GET" action="{{ url_for('main.search') }}">
-            <label for="query">Search terms:</label>
-
-            <input
-                id="query"
-                type="text"
-                name="query"
-                value="{{ query }}"
-                placeholder="e.g. coal units in Kentucky with high CO2 emissions"
-            >
-
-            <button type="submit">Search Database</button>
-        </form>
-
-        {% if search_performed %}
-            <h3>Database Search Results</h3>
-
-            {% if basic_error %}
-                <p class="error" role="alert">{{ basic_error }}</p>
-            {% elif basic_notice %}
-                <p>{{ basic_notice }}</p>
-            {% endif %}
-
-            {% if results %}
-                <p>Found {{ results|length }} matching EPA record(s).</p>
-
-                {% for record in results %}
-                    <div class="search-result">
-                        {% for key, value in record.items() %}
-                            <p>
-                                <strong>{{ key }}:</strong>
-                                {{ value if value is not none else "Not available" }}
-                            </p>
-                        {% endfor %}
-                        <hr>
-                    </div>
-                {% endfor %}
-            {% elif search_performed and not basic_error and not basic_notice %}
-                <p>No matching EPA records were found.</p>
-            {% endif %}
-        {% endif %}
-    </div>
-
-    <br>
-
-    <!-- ================================================== -->
-    <!-- 2. ADVANCED / MULTI-CONSTRAINT SEARCH               -->
-    <!-- ================================================== -->
-
-    <div class="pagesLight">
-        <h2>Advanced Search</h2>
-
-        <p>
-            Combine multiple filters. All supplied conditions must match.
-            For example, choose Kentucky, a reporting-year range, and a
-            minimum CO₂ value.
-        </p>
-
-        <form method="GET" action="{{ url_for('main.advanced_search') }}">
-
-            <label for="advanced_state">State:</label>
-            <select id="advanced_state" name="state">
-                <option value="">Any state</option>
-                {% for code, name in advanced_states %}
-                    <option
-                        value="{{ code }}"
-                        {% if advanced_values.get('state', '') == code %}selected{% endif %}
-                    >
-                        {{ name }} ({{ code }})
-                    </option>
-                {% endfor %}
-            </select>
-
-            <label for="year_from">Reporting year from:</label>
-            <input
-                id="year_from"
-                type="number"
-                name="year_from"
-                min="1900"
-                max="2100"
-                value="{{ advanced_values.get('year_from', '') }}"
-                placeholder="e.g. 2020"
-            >
-
-            <label for="year_to">Reporting year to:</label>
-            <input
-                id="year_to"
-                type="number"
-                name="year_to"
-                min="1900"
-                max="2100"
-                value="{{ advanced_values.get('year_to', '') }}"
-                placeholder="e.g. 2025"
-            >
-
-            <label for="advanced_fuel">Fuel:</label>
-            <input
-                id="advanced_fuel"
-                type="text"
-                name="fuel"
-                value="{{ advanced_values.get('fuel', '') }}"
-                placeholder="e.g. Coal"
-            >
-
-            <label for="facility_id">EPA Facility ID:</label>
-            <input
-                id="facility_id"
-                type="text"
-                name="facility_id"
-                value="{{ advanced_values.get('facility_id', '') }}"
-                placeholder="Optional"
-            >
-
-            <label for="unit_id">EPA Unit ID:</label>
-            <input
-                id="unit_id"
-                type="text"
-                name="unit_id"
-                value="{{ advanced_values.get('unit_id', '') }}"
-                placeholder="Optional"
-            >
-
-            <h3>Measurement Filter</h3>
-
-            <label for="metric">Measurement:</label>
-            <select id="metric" name="metric">
-                <option value="co2_mass" {% if advanced_values.get('metric', 'co2_mass') == 'co2_mass' %}selected{% endif %}>
-                    CO₂ mass
-                </option>
-                <option value="so2_mass" {% if advanced_values.get('metric') == 'so2_mass' %}selected{% endif %}>
-                    SO₂ mass
-                </option>
-                <option value="nox_mass" {% if advanced_values.get('metric') == 'nox_mass' %}selected{% endif %}>
-                    NOx mass
-                </option>
-                <option value="heat_input" {% if advanced_values.get('metric') == 'heat_input' %}selected{% endif %}>
-                    Heat input
-                </option>
-                <option value="gross_load" {% if advanced_values.get('metric') == 'gross_load' %}selected{% endif %}>
-                    Gross load
-                </option>
-                <option value="steam_load" {% if advanced_values.get('metric') == 'steam_load' %}selected{% endif %}>
-                    Steam load
-                </option>
-                <option value="operating_time" {% if advanced_values.get('metric') == 'operating_time' %}selected{% endif %}>
-                    Operating time
-                </option>
-            </select>
-
-            <label for="operator">Comparison:</label>
-            <select id="operator" name="operator">
-                <option value=">" {% if advanced_values.get('operator', '>') == '>' %}selected{% endif %}>
-                    Greater than (&gt;)
-                </option>
-                <option value=">=" {% if advanced_values.get('operator') == '>=' %}selected{% endif %}>
-                    Greater than or equal to (&gt;=)
-                </option>
-                <option value="<" {% if advanced_values.get('operator') == '<' %}selected{% endif %}>
-                    Less than (&lt;)
-                </option>
-                <option value="<=" {% if advanced_values.get('operator') == '<=' %}selected{% endif %}>
-                    Less than or equal to (&lt;=)
-                </option>
-                <option value="=" {% if advanced_values.get('operator') == '=' %}selected{% endif %}>
-                    Equal to (=)
-                </option>
-                <option value="between" {% if advanced_values.get('operator') == 'between' %}selected{% endif %}>
-                    Between
-                </option>
-            </select>
-
-            <label for="value">Measurement value:</label>
-            <input
-                id="value"
-                type="text"
-                name="value"
-                inputmode="decimal"
-                value="{{ advanced_values.get('value', '') }}"
-                placeholder="e.g. 500000"
-            >
-
-            <label for="value_to">Upper value (for Between only):</label>
-            <input
-                id="value_to"
-                type="text"
-                name="value_to"
-                inputmode="decimal"
-                value="{{ advanced_values.get('value_to', '') }}"
-                placeholder="e.g. 750000"
-            >
-
-            <button type="submit">Apply Advanced Filters</button>
-        </form>
-
-        {% if advanced_error %}
-            <p class="error" role="alert">{{ advanced_error }}</p>
-        {% endif %}
-
-        {% if advanced_performed and not advanced_error %}
-            <h3>Advanced Search Results</h3>
-
-            {% if advanced_notice %}
-                <p>{{ advanced_notice }}</p>
-            {% endif %}
-
-            {% if advanced_results %}
-                <p>Found {{ advanced_results|length }} matching EPA record(s).</p>
-
-                {% for record in advanced_results %}
-                    <div class="search-result">
-                        {% for key, value in record.items() %}
-                            <p>
-                                <strong>{{ key }}:</strong>
-                                {{ value if value is not none else "Not available" }}
-                            </p>
-                        {% endfor %}
-                        <hr>
-                    </div>
-                {% endfor %}
-            {% elif advanced_performed and not advanced_error and not advanced_notice %}
-                <p>No EPA records matched all of your advanced filters.</p>
-            {% endif %}
-        {% endif %}
-    </div>
-
-    <br>
-
-    <!-- ================================================== -->
-    <!-- 3. LIVE EPA CAMPD SEARCH                            -->
-    <!-- ================================================== -->
-
-    <div class="pagesLight">
-        <h2>Live CAMPD Search</h2>
-
-        <p>
-            Query EPA CAMPD directly for one state and one dataset.
-            Results are fetched a page at a time and are not saved to
-            the database. Hourly searches must stay within
-            2015-01-01 through 2025-01-01.
-        </p>
-
-        <form method="GET" action="{{ url_for('main.search') }}">
-            <input type="hidden" name="campd_search" value="1">
-
-            <label for="campd_state">State:</label>
-            <select id="campd_state" name="campd_state" required>
-                <option value="">Choose a state</option>
-                {% for code, name in campd_states %}
-                    <option value="{{ code }}"
-                        {% if campd_state == code %}selected{% endif %}>
-                        {{ name }}
-                    </option>
-                {% endfor %}
-            </select>
-
-            <label for="campd_dataset">Dataset:</label>
-            <select id="campd_dataset" name="campd_dataset" required>
-                {% for key, label in campd_datasets.items() %}
-                    <option value="{{ key }}"
-                        {% if campd_dataset == key %}selected{% endif %}>
-                        {{ label }}
-                    </option>
-                {% endfor %}
-            </select>
-
-            <label for="campd_oris_code">Facility ID (optional):</label>
-            <input
-                id="campd_oris_code"
-                name="campd_oris_code"
-                type="text"
-                inputmode="numeric"
-                pattern="[0-9]+"
-                value="{{ campd_oris_code }}"
-            >
-
-            <label for="campd_year">Annual reporting year:</label>
-            <select id="campd_year" name="campd_year">
-                <option value="">Choose year</option>
-                {% for year in range(2015, 2025) %}
-                    <option value="{{ year }}"
-                        {% if campd_year == year|string %}selected{% endif %}>
-                        {{ year }}
-                    </option>
-                {% endfor %}
-            </select>
-
-            <label for="campd_begin_date">Hourly start date:</label>
-            <input
-                id="campd_begin_date"
-                name="campd_begin_date"
-                type="date"
-                min="2015-01-01"
-                max="2024-12-31"
-                value="{{ campd_begin_date }}"
-            >
-
-            <label for="campd_end_date">Hourly end date:</label>
-            <input
-                id="campd_end_date"
-                name="campd_end_date"
-                type="date"
-                min="2015-01-02"
-                max="2025-01-01"
-                value="{{ campd_end_date }}"
-            >
-
-            <label for="campd_per_page">Rows per page:</label>
-            <select id="campd_per_page" name="campd_per_page">
-                {% for page_size in (25, 50, 100, 500) %}
-                    <option value="{{ page_size }}"
-                        {% if campd_per_page == page_size %}selected{% endif %}>
-                        {{ page_size }}
-                    </option>
-                {% endfor %}
-            </select>
-
-            <button type="submit">Search EPA CAMPD</button>
-        </form>
-
-        {% if campd_error %}
-            <p class="error" role="alert">{{ campd_error }}</p>
-
-        {% elif campd_searched %}
-            <h3>Live CAMPD Results</h3>
-
+        <div class="feature-card">
+            <h2>Basic Search</h2>
             <p>
-                EPA reports {{ campd_total }} matching record(s).
-                Showing {{ campd_records|length }} result(s)
-                on page {{ campd_page }}.
+                Search by keywords, facility details, state,
+                reporting year, or descriptive phrases.
             </p>
+            <a class="button" href="{{ url_for('main.basic_search') }}">
+                Basic Search
+            </a>
+        </div>
 
-            {% if campd_records %}
-                <div style="overflow-x: auto;">
-                    <table border="1" cellpadding="5" cellspacing="0">
-                        <thead>
-                            <tr>
-                                {% for column in campd_columns %}
-                                    <th>{{ column }}</th>
-                                {% endfor %}
-                            </tr>
-                        </thead>
+        <div class="feature-card">
+            <h2>Advanced Search</h2>
+            <p>
+                Combine reporting years, facility IDs,
+                and numeric measurement comparisons.
+            </p>
+            <a class="button" href="{{ url_for('main.advanced_search') }}">
+                Advanced Search
+            </a>
+        </div>
 
-                        <tbody>
-                            {% for record in campd_records %}
-                                <tr>
-                                    {% for column in campd_columns %}
-                                        <td>{{ record.get(column, "") }}</td>
-                                    {% endfor %}
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+        <div class="feature-card">
+            <h2>Live EPA CAMPD Search</h2>
+            <p>
+                Query EPA's CAMPD service directly and
+                browse results across multiple pages.
+            </p>
+            <a class="button" href="{{ url_for('main.campd_search') }}">
+                Live EPA Search
+            </a>
+        </div>
 
-                {% if campd_page > 1 %}
-                    <a href="{{ url_for(
-                        'main.search',
-                        campd_search=1,
-                        campd_state=campd_state,
-                        campd_dataset=campd_dataset,
-                        campd_year=campd_year,
-                        campd_oris_code=campd_oris_code,
-                        campd_begin_date=campd_begin_date,
-                        campd_end_date=campd_end_date,
-                        campd_per_page=campd_per_page,
-                        campd_page=campd_page - 1
-                    ) }}">Previous CAMPD page</a>
-                {% endif %}
-
-                {% if campd_records|length == campd_per_page %}
-                    <a href="{{ url_for(
-                        'main.search',
-                        campd_search=1,
-                        campd_state=campd_state,
-                        campd_dataset=campd_dataset,
-                        campd_year=campd_year,
-                        campd_oris_code=campd_oris_code,
-                        campd_begin_date=campd_begin_date,
-                        campd_end_date=campd_end_date,
-                        campd_per_page=campd_per_page,
-                        campd_page=campd_page + 1
-                    ) }}">Next CAMPD page</a>
-                {% endif %}
-
-            {% else %}
-                <p>No CAMPD records were returned for this page.</p>
-            {% endif %}
-        {% endif %}
     </div>
-
-</div>
+</section>
 
 {% endblock %}

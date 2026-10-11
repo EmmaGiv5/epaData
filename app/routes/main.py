@@ -696,23 +696,11 @@ def data_explorer():
     
 
 STATE_NAMES = {
-    "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona",
-    "AR": "Arkansas", "CA": "California", "CO": "Colorado",
-    "CT": "Connecticut", "DE": "Delaware", "FL": "Florida",
-    "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho",
-    "IL": "Illinois", "IN": "Indiana", "IA": "Iowa",
-    "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana",
-    "ME": "Maine", "MD": "Maryland", "MA": "Massachusetts",
-    "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi",
-    "MO": "Missouri", "MT": "Montana", "NE": "Nebraska",
-    "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey",
-    "NM": "New Mexico", "NY": "New York", "NC": "North Carolina",
-    "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma",
-    "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island",
-    "SC": "South Carolina", "SD": "South Dakota",
-    "TN": "Tennessee", "TX": "Texas", "UT": "Utah",
-    "VT": "Vermont", "VA": "Virginia", "WA": "Washington",
-    "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming",
+    "AL": "Alabama",
+    "GA": "Georgia",
+    "KY": "Kentucky",
+    "MS": "Mississippi",
+    "TN": "Tennessee",
 }
 
 
@@ -876,67 +864,17 @@ def _fetch_annual_facility_records(state_code, year, oris_code=""):
 
 @main_bp.route("/search", methods=["GET"])
 def search():
-    # Basic / description-based database search
+    """Search landing page."""
+    return render_template("search.html")
+
+
+@main_bp.route("/basic-search", methods=["GET"])
+def basic_search():
+    """Basic and description-based EPA search."""
     query_text = request.args.get("query", "").strip()
     interpreted, residual = interpret_basic_query(query_text)
+
     results = []
-
-    # Keep the CAMPD form values and API results.
-    campd_records = []
-    campd_columns = []
-    campd_total = None
-    campd_error = None
-    campd_searched = request.args.get("campd_search") == "1"
-    campd_state = request.args.get("campd_state", "").strip().upper()
-    campd_dataset = request.args.get(
-        "campd_dataset", "annual_facility"
-    ).strip()
-    campd_year = request.args.get("campd_year", "").strip()
-    campd_oris_code = request.args.get("campd_oris_code", "").strip()
-    campd_begin_date = request.args.get("campd_begin_date", "").strip()
-    campd_end_date = request.args.get("campd_end_date", "").strip()
-    campd_page = request.args.get("campd_page", 1, type=int)
-    campd_per_page = request.args.get("campd_per_page", 50, type=int)
-
-    if campd_per_page not in (25, 50, 100, 500):
-        campd_per_page = 50
-
-    # Run the live CAMPD search only when its form is submitted.
-    if campd_searched:
-        try:
-            filters = build_dataset_filters(
-                dataset=campd_dataset,
-                state_code=campd_state,
-                year=campd_year,
-                begin_date=campd_begin_date,
-                end_date=campd_end_date,
-                oris_code=campd_oris_code,
-            )
-
-            api_result = fetch_dataset_with_provenance(
-                dataset=campd_dataset,
-                filters=filters,
-                page=max(campd_page, 1),
-                per_page=campd_per_page,
-            )
-
-            campd_records = [
-                record
-                for record in api_result["records"]
-                if isinstance(record, dict)
-            ]
-            campd_total = api_result["total"]
-
-            for record in campd_records:
-                for key in record:
-                    if key not in campd_columns and len(campd_columns) < 12:
-                        campd_columns.append(key)
-
-        except CAMPDServiceError as exc:
-            campd_error = str(exc)
-
-    # Run the database search if the basic search bar has text.
-        # Basic / description-based search using live EPA CAMPD data.
     basic_error = None
     basic_notice = None
 
@@ -944,20 +882,19 @@ def search():
         try:
             state_codes = [code for code, _ in STATE_OPTIONS]
 
-            # Search one state if the query identifies it; otherwise all five.
             if "state" in interpreted:
                 selected_state = interpreted["state"][0]
+
                 if selected_state not in state_codes:
                     raise CAMPDServiceError(
                         "That state is not currently supported."
                     )
+
                 state_codes = [selected_state]
 
-            # If the user provides a year, search that year.
-            # Otherwise, look backward from 2025 for each state's latest
-            # year with matching records.
             if "year" in interpreted:
                 years = [int(interpreted["year"])]
+
                 if not 2015 <= years[0] <= 2025:
                     raise CAMPDServiceError(
                         "Choose a reporting year from 2015 through 2025."
@@ -967,11 +904,8 @@ def search():
 
             residual_terms = residual.lower().split()
             matches = []
-            searched_states = []
 
             for state_code in state_codes:
-                searched_states.append(state_code)
-
                 for year in years:
                     records, _ = _fetch_annual_facility_records(
                         state_code, year
@@ -983,23 +917,17 @@ def search():
                         if not isinstance(record, dict):
                             continue
 
-                        # Apply the CO2 threshold when the query parser
-                        # recognizes one.
                         if "co2_gt" in interpreted:
                             co2_value = _api_number(
-                                _api_value(
-                                    record, "co2Mass", "co2_mass"
-                                )
+                                _api_value(record, "co2Mass", "co2_mass")
                             )
 
-                            if co2_value is None:
+                            if (
+                                co2_value is None
+                                or co2_value <= interpreted["co2_gt"]
+                            ):
                                 continue
 
-                            if co2_value <= interpreted["co2_gt"]:
-                                continue
-
-                        # Apply fuel filtering only when the API record
-                        # actually contains a fuel field.
                         if "fuel" in interpreted:
                             fuel_value = _api_value(
                                 record,
@@ -1021,7 +949,6 @@ def search():
                             ).lower():
                                 continue
 
-                        # Search the remaining words across returned fields.
                         searchable_text = " ".join(
                             str(value)
                             for value in record.values()
@@ -1034,7 +961,6 @@ def search():
                         ):
                             continue
 
-                        # Preserve state/year context when EPA omits it.
                         record.setdefault("stateCode", state_code)
                         record.setdefault("year", year)
                         year_matches.append(record)
@@ -1042,8 +968,6 @@ def search():
                     if year_matches:
                         matches.extend(year_matches)
 
-                        # With no explicit year, use the newest matching
-                        # reporting year for this state.
                         if "year" not in interpreted:
                             break
 
@@ -1058,30 +982,78 @@ def search():
         except (CAMPDServiceError, ValueError, TypeError) as exc:
             basic_error = str(exc)
             results = []
-            
 
     return render_template(
-        "search.html",
+        "basic_search.html",
         query=query_text,
         results=results,
         search_performed=bool(query_text),
-        search_mode="basic",
         basic_error=basic_error,
         basic_notice=basic_notice,
+    )
 
-        # Advanced-search values (the advanced route supplies its own results).
-        advanced_results=[],
-        advanced_performed=False,
-        advanced_error=None,
-        advanced_states=sorted(STATE_NAMES.items()),
-        advanced_values={},
 
-        # CAMPD search options
+@main_bp.route("/campd-search", methods=["GET"])
+def campd_search():
+    """Live EPA CAMPD search with independent pagination."""
+    campd_records = []
+    campd_columns = []
+    campd_total = None
+    campd_error = None
+
+    campd_searched = request.args.get("campd_search") == "1"
+    campd_state = request.args.get("campd_state", "").strip().upper()
+    campd_dataset = request.args.get(
+        "campd_dataset", "annual_facility"
+    ).strip()
+    campd_year = request.args.get("campd_year", "").strip()
+    campd_oris_code = request.args.get("campd_oris_code", "").strip()
+    campd_begin_date = request.args.get("campd_begin_date", "").strip()
+    campd_end_date = request.args.get("campd_end_date", "").strip()
+    campd_page = max(request.args.get("campd_page", 1, type=int), 1)
+    campd_per_page = request.args.get("campd_per_page", 50, type=int)
+
+    if campd_per_page not in (25, 50, 100, 500):
+        campd_per_page = 50
+
+    if campd_searched:
+        try:
+            filters = build_dataset_filters(
+                dataset=campd_dataset,
+                state_code=campd_state,
+                year=campd_year,
+                begin_date=campd_begin_date,
+                end_date=campd_end_date,
+                oris_code=campd_oris_code,
+            )
+
+            api_result = fetch_dataset_with_provenance(
+                dataset=campd_dataset,
+                filters=filters,
+                page=campd_page,
+                per_page=campd_per_page,
+            )
+
+            campd_records = [
+                record
+                for record in api_result["records"]
+                if isinstance(record, dict)
+            ]
+            campd_total = api_result["total"]
+
+            for record in campd_records:
+                for key in record:
+                    if key not in campd_columns and len(campd_columns) < 12:
+                        campd_columns.append(key)
+
+        except CAMPDServiceError as exc:
+            campd_error = str(exc)
+
+    return render_template(
+        "campd_search.html",
         campd_datasets=campd_datasets,
         campd_states=STATE_OPTIONS,
         campd_emission_datasets=EMISSION_DATASETS,
-
-        # CAMPD selections
         campd_state=campd_state,
         campd_dataset=campd_dataset,
         campd_year=campd_year,
@@ -1090,8 +1062,6 @@ def search():
         campd_end_date=campd_end_date,
         campd_page=campd_page,
         campd_per_page=campd_per_page,
-
-        # CAMPD results and status
         campd_records=campd_records,
         campd_columns=campd_columns,
         campd_total=campd_total,
@@ -1281,7 +1251,7 @@ def advanced_search():
             )
 
     return render_template(
-        "search.html",
+        "advanced_search.html",
         query="",
         results=[],
         search_performed=False,

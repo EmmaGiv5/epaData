@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block title %}
+Advanced Search | epaData
+{% endblock %}
+
+{% block header %}Advanced Search{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+    <h1>Advanced Search</h1>
+
+    <p>
+        Combine multiple filters. All supplied conditions must match.
+    </p>
+
+    <form method="GET" action="{{ url_for('main.advanced_search') }}">
+
+        <label for="advanced_state">State:</label>
+        <select id="advanced_state" name="state">
+            <option value="">Any state</option>
+            {% for code, name in advanced_states %}
+                <option value="{{ code }}"
+                    {% if advanced_values.get('state', '') == code %}selected{% endif %}>
+                    {{ name }} ({{ code }})
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="year_from">Reporting year from:</label>
+        <input id="year_from" type="number" name="year_from"
+            min="1900" max="2100"
+            value="{{ advanced_values.get('year_from', '') }}"
+            placeholder="e.g. 2020">
+
+        <label for="year_to">Reporting year to:</label>
+        <input id="year_to" type="number" name="year_to"
+            min="1900" max="2100"
+            value="{{ advanced_values.get('year_to', '') }}"
+            placeholder="e.g. 2025">
+
+        <label for="advanced_fuel">Fuel:</label>
+        <input id="advanced_fuel" type="text" name="fuel"
+            value="{{ advanced_values.get('fuel', '') }}"
+            placeholder="e.g. Coal">
+
+        <label for="facility_id">EPA Facility ID:</label>
+        <input id="facility_id" type="text" name="facility_id"
+            value="{{ advanced_values.get('facility_id', '') }}"
+            placeholder="Optional">
+
+        <label for="unit_id">EPA Unit ID:</label>
+        <input id="unit_id" type="text" name="unit_id"
+            value="{{ advanced_values.get('unit_id', '') }}"
+            placeholder="Optional">
+
+        <h3>Measurement Filter</h3>
+
+        <label for="metric">Measurement:</label>
+        <select id="metric" name="metric">
+            <option value="co2_mass"
+                {% if advanced_values.get('metric', 'co2_mass') == 'co2_mass' %}selected{% endif %}>
+                CO₂ mass
+            </option>
+            <option value="so2_mass"
+                {% if advanced_values.get('metric') == 'so2_mass' %}selected{% endif %}>
+                SO₂ mass
+            </option>
+            <option value="nox_mass"
+                {% if advanced_values.get('metric') == 'nox_mass' %}selected{% endif %}>
+                NOx mass
+            </option>
+            <option value="heat_input"
+                {% if advanced_values.get('metric') == 'heat_input' %}selected{% endif %}>
+                Heat input
+            </option>
+            <option value="gross_load"
+                {% if advanced_values.get('metric') == 'gross_load' %}selected{% endif %}>
+                Gross load
+            </option>
+            <option value="steam_load"
+                {% if advanced_values.get('metric') == 'steam_load' %}selected{% endif %}>
+                Steam load
+            </option>
+            <option value="operating_time"
+                {% if advanced_values.get('metric') == 'operating_time' %}selected{% endif %}>
+                Operating time
+            </option>
+        </select>
+
+        <label for="operator">Comparison:</label>
+        <select id="operator" name="operator">
+            <option value=">"
+                {% if advanced_values.get('operator', '>') == '>' %}selected{% endif %}>
+                Greater than (&gt;)
+            </option>
+            <option value=">="
+                {% if advanced_values.get('operator') == '>=' %}selected{% endif %}>
+                Greater than or equal to (&gt;=)
+            </option>
+            <option value="<"
+                {% if advanced_values.get('operator') == '<' %}selected{% endif %}>
+                Less than (&lt;)
+            </option>
+            <option value="<="
+                {% if advanced_values.get('operator') == '<=' %}selected{% endif %}>
+                Less than or equal to (&lt;=)
+            </option>
+            <option value="="
+                {% if advanced_values.get('operator') == '=' %}selected{% endif %}>
+                Equal to (=)
+            </option>
+            <option value="between"
+                {% if advanced_values.get('operator') == 'between' %}selected{% endif %}>
+                Between
+            </option>
+        </select>
+
+        <label for="value">Measurement value:</label>
+        <input id="value" type="text" name="value" inputmode="decimal"
+            value="{{ advanced_values.get('value', '') }}"
+            placeholder="e.g. 500000">
+
+        <label for="value_to">Upper value (for Between only):</label>
+        <input id="value_to" type="text" name="value_to" inputmode="decimal"
+            value="{{ advanced_values.get('value_to', '') }}"
+            placeholder="e.g. 750000">
+
+        <button type="submit">Apply Advanced Filters</button>
+    </form>
+
+    <p>
+        <a href="{{ url_for('main.search') }}">← Back to Search Options</a>
+    </p>
+
+    {% if advanced_error %}
+        <p class="error" role="alert">{{ advanced_error }}</p>
+    {% endif %}
+</section>
+
+{% if advanced_performed and not advanced_error %}
+<section class="hero">
+    <h2>Advanced Search Results</h2>
+
+    {% if advanced_notice %}
+        <p>{{ advanced_notice }}</p>
+    {% endif %}
+
+    {% if advanced_results %}
+        <p>Found {{ advanced_results|length }} matching EPA record(s).</p>
+
+        {% for record in advanced_results %}
+            <div class="search-result">
+                {% for key, value in record.items() %}
+                    <p>
+                        <strong>{{ key }}:</strong>
+                        {{ value if value is not none else "Not available" }}
+                    </p>
+                {% endfor %}
+                <hr>
+            </div>
+        {% endfor %}
+    {% endif %}
+</section>
+{% endif %}
+
+{% endblock %}

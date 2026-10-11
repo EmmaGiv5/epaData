@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}
+Basic Search | epaData
+{% endblock %}
+
+{% block header %}Basic Search{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+    <h1>Basic &amp; Description-Based Search</h1>
+
+    <p>
+        Search by facility, state, reporting year, fuel,
+        or a description of the records you're looking for.
+    </p>
+
+    <form method="GET" action="{{ url_for('main.basic_search') }}">
+        <label for="query">Search terms:</label>
+
+        <input
+            id="query"
+            type="text"
+            name="query"
+            value="{{ query }}"
+            placeholder="e.g. coal units in Kentucky with high CO2 emissions"
+        >
+
+        <button type="submit">Search Database</button>
+    </form>
+
+    <p>
+        <a href="{{ url_for('main.search') }}">← Back to Search Options</a>
+    </p>
+</section>
+
+{% if search_performed %}
+<section class="hero">
+    <h2>Search Results</h2>
+
+    {% if basic_error %}
+        <p class="error" role="alert">{{ basic_error }}</p>
+    {% elif basic_notice %}
+        <p>{{ basic_notice }}</p>
+    {% endif %}
+
+    {% if results %}
+        <p>Found {{ results|length }} matching EPA record(s).</p>
+
+        {% for record in results %}
+            <div class="search-result">
+                {% for key, value in record.items() %}
+                    <p>
+                        <strong>{{ key }}:</strong>
+                        {{ value if value is not none else "Not available" }}
+                    </p>
+                {% endfor %}
+                <hr>
+            </div>
+        {% endfor %}
+    {% endif %}
+</section>
+{% endif %}
+
+{% endblock %}
