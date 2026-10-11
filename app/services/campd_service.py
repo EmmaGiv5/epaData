@@ -2,6 +2,13 @@ import json
 import os
 from datetime import date
 
+# extra imports
+import hashlib
+
+from sqlalchemy.dialects.postgresql import insert
+from app.models import CampdRecord
+#
+
 import requests
 from dotenv import load_dotenv # loads the environment from .env file
 from sqlalchemy.exc import SQLAlchemyError
@@ -208,6 +215,87 @@ def fetch_dataset(
         "records": records,
         "total": total,
     }
+    
+
+def save_campd_records(dataset, records, filters=None):
+    """Save raw CAMPD emission records to Supabase without duplicates."""
+
+    from app import db
+
+    filters = filters or {}
+    saved_count = 0
+
+    try:
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+
+            # Find the state in the API record or search filters.
+            state_code = (
+                record.get("stateCode")
+                or record.get("state_code")
+                or record.get("state")
+                or filters.get("stateCode")
+            )
+
+            # Find the reporting year in the record or filters.
+            year_value = (
+                record.get("year")
+                or record.get("reportingYear")
+                or record.get("reporting_year")
+                or filters.get("year")
+            )
+
+            # For date-based records, try to determine the year.
+            if not year_value:
+                for field in ("date", "beginDate", "dateHour"):
+                    value = record.get(field)
+                    if isinstance(value, str) and len(value) >= 4:
+                        if value[:4].isdigit():
+                            year_value = int(value[:4])
+                            break
+
+            if not state_code or not year_value:
+                # Don't invent required values for incomplete records.
+                continue
+
+            try:
+                reporting_year = int(year_value)
+            except (TypeError, ValueError):
+                continue
+
+            state_code = str(state_code).upper()
+
+            # Generate a stable hash from the full record.
+            payload = json.dumps(
+                record,
+                sort_keys=True,
+                separators=(",", ":"),
+                default=str,
+            )
+            record_hash = hashlib.sha256(
+                payload.encode("utf-8")
+            ).hexdigest()
+
+            statement = insert(CampdRecord).values(
+                dataset_type=dataset,
+                state_code=state_code,
+                reporting_year=reporting_year,
+                record_hash=record_hash,
+                payload_json=payload,
+            ).on_conflict_do_nothing(
+                constraint="unique_campd_record"
+            )
+
+            result = db.session.execute(statement)
+            saved_count += result.rowcount or 0
+
+        db.session.commit()
+        return saved_count
+
+    except Exception:
+        db.session.rollback()
+        raise
 
 
 def fetch_dataset_with_provenance( # calls the API and saves metadata about the retrieval, but not the records themselves

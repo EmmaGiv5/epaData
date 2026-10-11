@@ -37,21 +37,32 @@ def create_app():
     # Import application blueprints
     from .routes.main import main_bp
     from .routes.explorer import explorer_bp
+    from .routes.campd import campd_bp
 
     # Register blueprints
     app.register_blueprint(main_bp)
     app.register_blueprint(explorer_bp)
-    # Require login before accessing protected pages
-    # Keep disabled while testing the application.
+    app.register_blueprint(campd_bp)
+
     
+    # Require login before accessing protected pages.
     @app.before_request
     def require_login():
+        # Allow static files through.
         if request.endpoint == "static":
             return None
-    
-        if request.endpoint == "main.login":
+
+        # Allow public account-related pages through.
+        public_endpoints = {
+            "main.login",
+            "main.create_user",
+            "main.forgot_password",
+        }
+
+        if request.endpoint in public_endpoints:
             return None
-    
+
+        # Redirect unauthenticated users to login.
         if "user_id" not in session:
             return redirect(url_for("main.login"))
 

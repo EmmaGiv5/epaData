@@ -8,6 +8,7 @@
 #import psycopg2
 from dotenv import load_dotenv
 import os
+import re
 # Load environment variables from .env
 load_dotenv()
 
@@ -20,7 +21,6 @@ load_dotenv()
 
 import uuid
 from datetime import datetime
-#from sqlalchemy import or_
 from sqlalchemy import or_, cast, String
 
 from flask import (
@@ -61,12 +61,23 @@ from app.search_utils import (
     normalize_query,
     find_search_fields,
 )
+
+#from app.services.campd_service import (
+#    CAMPDServiceError,
+#    EMISSION_DATASETS,
+#    STATE_OPTIONS,
+#    build_dataset_filters,
+#    fetch_dataset_with_provenance,
+#)
+
 from app.services.campd_service import (
-    CAMPDServiceError,
+    DATASETS as campd_datasets,
     EMISSION_DATASETS,
     STATE_OPTIONS,
     build_dataset_filters,
+    fetch_dataset,
     fetch_dataset_with_provenance,
+    CAMPDServiceError,
 )
 
 
@@ -684,18 +695,193 @@ def data_explorer():
     
     
 
+STATE_NAMES = {
+    "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona",
+    "AR": "Arkansas", "CA": "California", "CO": "Colorado",
+    "CT": "Connecticut", "DE": "Delaware", "FL": "Florida",
+    "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho",
+    "IL": "Illinois", "IN": "Indiana", "IA": "Iowa",
+    "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana",
+    "ME": "Maine", "MD": "Maryland", "MA": "Massachusetts",
+    "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi",
+    "MO": "Missouri", "MT": "Montana", "NE": "Nebraska",
+    "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey",
+    "NM": "New Mexico", "NY": "New York", "NC": "North Carolina",
+    "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma",
+    "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island",
+    "SC": "South Carolina", "SD": "South Dakota",
+    "TN": "Tennessee", "TX": "Texas", "UT": "Utah",
+    "VT": "Vermont", "VA": "Virginia", "WA": "Washington",
+    "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming",
+}
+
+
+def interpret_basic_query(query):
+    """Turn common descriptive phrases into database filters."""
+    remaining = query.lower()
+    filters = {}
+
+    # Match full state names first so "in Kentucky" is not
+    # mistaken for the state abbreviation IN (Indiana).
+    for code, name in STATE_NAMES.items():
+        pattern = rf"\b{re.escape(name.lower())}\b"
+        if re.search(pattern, remaining):
+            filters["state"] = (code, name)
+            remaining = re.sub(pattern, " ", remaining)
+            break
+
+    # Match state abbreviations when the query makes it clear
+    # that the abbreviation is intended as a state.
+    if "state" not in filters:
+        original = query
+
+        for code, name in STATE_NAMES.items():
+            # Accept an uppercase abbreviation such as KY,
+            # an abbreviation after "in", or a query that is
+            # exactly the abbreviation.
+            patterns = [
+                rf"\b{re.escape(code)}\b",
+                rf"\b(?:in|state)\s+{re.escape(code.lower())}\b",
+            ]
+
+            matched_pattern = None
+
+            if original == code:
+                matched_pattern = rf"\b{re.escape(code.lower())}\b"
+            elif re.search(patterns[1], remaining):
+                matched_pattern = patterns[1]
+            elif re.search(patterns[0], original):
+                matched_pattern = rf"\b{re.escape(code.lower())}\b"
+
+            if matched_pattern:
+                filters["state"] = (code, name)
+                remaining = re.sub(
+                    matched_pattern, " ", remaining, count=1
+                )
+                break
+
+    # Recognize a reporting year.
+    year_match = re.search(r"\b(19\d{2}|20\d{2})\b", remaining)
+    if year_match:
+        year_text = year_match.group(0)
+        filters["year"] = int(year_text)
+        remaining = re.sub(rf"\b{year_text}\b", " ", remaining, count=1)
+
+    # Recognize common fuel descriptions. Longer phrases come first.
+    fuel_terms = (
+        "natural gas", "petroleum coke", "biomass",
+        "coal", "oil", "gas", "nuclear", "wood",
+    )
+    for fuel in fuel_terms:
+        pattern = rf"\b{re.escape(fuel)}\b"
+        if re.search(pattern, remaining):
+            filters["fuel"] = fuel
+            remaining = re.sub(pattern, " ", remaining, count=1)
+            break
+
+    # Initial rule: "high CO2" means CO2 mass greater than 500,000.
+    high_co2 = re.search(
+        r"\b(?:high|highly elevated|large)\b.{0,20}"
+        r"\b(?:co2|carbon dioxide)\b"
+        r"|\b(?:co2|carbon dioxide)\b.{0,20}"
+        r"\b(?:high|highly elevated|large)\b",
+        remaining,
+    )
+
+    if high_co2:
+        filters["co2_gt"] = 500000
+        remaining = re.sub(
+            r"\b(?:high|highly elevated|large)\b", " ", remaining
+        )
+        remaining = re.sub(
+            r"\b(?:co2|carbon dioxide|emissions?|tons?)\b",
+            " ", remaining,
+        )
+
+    # Remove conversational filler and keep useful search terms.
+    filler = {
+        "find", "show", "me", "all", "the", "with", "in", "for",
+        "units", "unit", "facility", "facilities", "records",
+        "where", "having", "that", "are", "is", "of", "and",
+        "from", "emissions", "emission",
+    }
+
+    words = re.findall(r"[a-z0-9_-]+", remaining)
+    residual = " ".join(word for word in words if word not in filler)
+
+    return filters, residual
+
+# reusable helpers for EPA records
+
+def _normalized_api_key(value):
+    return re.sub(r"[^a-z0-9]", "", str(value).lower())
+
+
+def _api_value(record, *names):
+    """Find an API field even if its casing or underscores differ."""
+    wanted = {_normalized_api_key(name) for name in names}
+
+    for key, value in record.items():
+        if _normalized_api_key(key) in wanted:
+            return value
+
+    return None
+
+
+def _api_number(value):
+    """Convert a numeric API value to float, if possible."""
+    if value is None or value == "":
+        return None
+
+    try:
+        return float(str(value).replace(",", ""))
+    except (ValueError, TypeError):
+        return None
+
+
+def _fetch_annual_facility_records(state_code, year, oris_code=""):
+    """Fetch up to 500 annual facility records for a state/year."""
+    filters = build_dataset_filters(
+        dataset="annual_facility",
+        state_code=state_code,
+        year=str(year),
+        oris_code=oris_code,
+    )
+
+    first_page = fetch_dataset(
+        "annual_facility",
+        filters=filters,
+        page=1,
+        per_page=100,
+    )
+
+    records = list(first_page["records"])
+    total = int(first_page.get("total", len(records)) or 0)
+
+    # Limit each state/year request to five pages to avoid excessive
+    # API requests. The returned total still reports EPA's total count.
+    page_count = min((total + 99) // 100, 5)
+
+    for page in range(2, page_count + 1):
+        response = fetch_dataset(
+            "annual_facility",
+            filters=filters,
+            page=page,
+            per_page=100,
+        )
+        records.extend(response["records"])
+
+    return records, total
+
+
 @main_bp.route("/search", methods=["GET"])
 def search():
-
-    # --------------------------------------------------
-    # 1. Get and normalize the user's search query
-    # --------------------------------------------------
-
-    query = request.args.get("query", "").strip()
-    normalized_query = normalize_query(query)
-
-    # Start with an empty list of results
+    # Basic / description-based database search
+    query_text = request.args.get("query", "").strip()
+    interpreted, residual = interpret_basic_query(query_text)
     results = []
+
+    # Keep the CAMPD form values and API results.
     campd_records = []
     campd_columns = []
     campd_total = None
@@ -703,8 +889,7 @@ def search():
     campd_searched = request.args.get("campd_search") == "1"
     campd_state = request.args.get("campd_state", "").strip().upper()
     campd_dataset = request.args.get(
-        "campd_dataset",
-        "annual_facility",
+        "campd_dataset", "annual_facility"
     ).strip()
     campd_year = request.args.get("campd_year", "").strip()
     campd_oris_code = request.args.get("campd_oris_code", "").strip()
@@ -712,9 +897,11 @@ def search():
     campd_end_date = request.args.get("campd_end_date", "").strip()
     campd_page = request.args.get("campd_page", 1, type=int)
     campd_per_page = request.args.get("campd_per_page", 50, type=int)
+
     if campd_per_page not in (25, 50, 100, 500):
         campd_per_page = 50
 
+    # Run the live CAMPD search only when its form is submitted.
     if campd_searched:
         try:
             filters = build_dataset_filters(
@@ -725,132 +912,401 @@ def search():
                 end_date=campd_end_date,
                 oris_code=campd_oris_code,
             )
+
             api_result = fetch_dataset_with_provenance(
                 dataset=campd_dataset,
                 filters=filters,
                 page=max(campd_page, 1),
                 per_page=campd_per_page,
             )
+
             campd_records = [
                 record
                 for record in api_result["records"]
                 if isinstance(record, dict)
             ]
             campd_total = api_result["total"]
+
             for record in campd_records:
                 for key in record:
                     if key not in campd_columns and len(campd_columns) < 12:
                         campd_columns.append(key)
+
         except CAMPDServiceError as exc:
             campd_error = str(exc)
 
-    # --------------------------------------------------
-    # 2. Search only if the user entered something
-    # --------------------------------------------------
+    # Run the database search if the basic search bar has text.
+        # Basic / description-based search using live EPA CAMPD data.
+    basic_error = None
+    basic_notice = None
 
-    if normalized_query:
+    if query_text:
+        try:
+            state_codes = [code for code, _ in STATE_OPTIONS]
 
-        search_term = f"%{normalized_query}%"
+            # Search one state if the query identifies it; otherwise all five.
+            if "state" in interpreted:
+                selected_state = interpreted["state"][0]
+                if selected_state not in state_codes:
+                    raise CAMPDServiceError(
+                        "That state is not currently supported."
+                    )
+                state_codes = [selected_state]
 
-        # Identify EPA measurements mentioned in the query.
-        # Example: "Compare CO2 and NOx emissions"
-        # returns ["nox_mass", "co2_mass"].
-        detected_fields = find_search_fields(
-            normalized_query
-        )
+            # If the user provides a year, search that year.
+            # Otherwise, look backward from 2025 for each state's latest
+            # year with matching records.
+            if "year" in interpreted:
+                years = [int(interpreted["year"])]
+                if not 2015 <= years[0] <= 2025:
+                    raise CAMPDServiceError(
+                        "Choose a reporting year from 2015 through 2025."
+                    )
+            else:
+                years = list(range(2025, 2014, -1))
 
-        # --------------------------------------------------
-        # 3. Build the existing text search conditions
-        # --------------------------------------------------
+            residual_terms = residual.lower().split()
+            matches = []
+            searched_states = []
 
-        text_conditions = [
-            # Facility information
-            Facility.facility_name.ilike(search_term),
-            Facility.epa_facility_id.ilike(search_term),
-            Facility.state.ilike(search_term),
-            Facility.source_category.ilike(search_term),
+            for state_code in state_codes:
+                searched_states.append(state_code)
 
-            # Unit information
-            Unit.epa_unit_id.ilike(search_term),
-            Unit.unit_type.ilike(search_term),
-            Unit.primary_fuel.ilike(search_term),
-            Unit.secondary_fuel.ilike(search_term),
+                for year in years:
+                    records, _ = _fetch_annual_facility_records(
+                        state_code, year
+                    )
 
-            # Annual record information
-            cast(
-                AnnualRecord.reporting_year,
-                String
-            ).ilike(search_term),
+                    year_matches = []
 
-            AnnualRecord.so2_control.ilike(search_term),
-            AnnualRecord.nox_control.ilike(search_term),
-            AnnualRecord.pm_control.ilike(search_term),
-            AnnualRecord.program_code.ilike(search_term),
-        ]
+                    for record in records:
+                        if not isinstance(record, dict):
+                            continue
 
-        # --------------------------------------------------
-        # 4. Add semantic measurement matching
-        # --------------------------------------------------
+                        # Apply the CO2 threshold when the query parser
+                        # recognizes one.
+                        if "co2_gt" in interpreted:
+                            co2_value = _api_number(
+                                _api_value(
+                                    record, "co2Mass", "co2_mass"
+                                )
+                            )
 
-        # If the user searches for "carbon emissions",
-        # include records that contain CO2 measurements.
-        #
-        # If the user searches for "CO2 and NOx",
-        # include records containing either measurement.
+                            if co2_value is None:
+                                continue
 
-        for field in detected_fields:
+                            if co2_value <= interpreted["co2_gt"]:
+                                continue
 
-            measurement_column = getattr(
-                AnnualRecord,
-                field
-            )
+                        # Apply fuel filtering only when the API record
+                        # actually contains a fuel field.
+                        if "fuel" in interpreted:
+                            fuel_value = _api_value(
+                                record,
+                                "primaryFuel",
+                                "secondaryFuel",
+                                "fuelType",
+                                "fuel",
+                            )
 
-            text_conditions.append(
-                measurement_column.isnot(None)
-            )
+                            if fuel_value is None:
+                                raise CAMPDServiceError(
+                                    "The annual facility endpoint does not "
+                                    "provide fuel details for these records. "
+                                    "Try searching by facility, state, or year."
+                                )
 
-        # --------------------------------------------------
-        # 5. Query the database
-        # --------------------------------------------------
+                            if interpreted["fuel"].lower() not in str(
+                                fuel_value
+                            ).lower():
+                                continue
 
-        results = (
-            AnnualRecord.query
+                        # Search the remaining words across returned fields.
+                        searchable_text = " ".join(
+                            str(value)
+                            for value in record.values()
+                            if value is not None
+                        ).lower()
 
-            # AnnualRecord -> Unit
-            .join(
-                Unit,
-                AnnualRecord.unit_id == Unit.id
-            )
+                        if not all(
+                            term in searchable_text
+                            for term in residual_terms
+                        ):
+                            continue
 
-            # Unit -> Facility
-            .join(
-                Facility,
-                Unit.facility_id == Facility.id
-            )
+                        # Preserve state/year context when EPA omits it.
+                        record.setdefault("stateCode", state_code)
+                        record.setdefault("year", year)
+                        year_matches.append(record)
 
-            # Match existing text searches OR recognized
-            # EPA measurement terminology.
-            .filter(
-                or_(*text_conditions)
-            )
+                    if year_matches:
+                        matches.extend(year_matches)
 
-            # Newest reporting years first
-            .order_by(
-                AnnualRecord.reporting_year.desc(),
-                Facility.facility_name,
-                Unit.epa_unit_id
-            )
+                        # With no explicit year, use the newest matching
+                        # reporting year for this state.
+                        if "year" not in interpreted:
+                            break
 
-            .all()
-        )
+            results = matches
 
-    # --------------------------------------------------
-    # 6. Display results in the existing template
-    # --------------------------------------------------
+            if not results:
+                basic_notice = (
+                    "No matching records were found in the annual facility "
+                    "data returned by EPA. Try another query or reporting year."
+                )
+
+        except (CAMPDServiceError, ValueError, TypeError) as exc:
+            basic_error = str(exc)
+            results = []
+            
 
     return render_template(
         "search.html",
+        query=query_text,
         results=results,
-        query=query
+        search_performed=bool(query_text),
+        search_mode="basic",
+        basic_error=basic_error,
+        basic_notice=basic_notice,
+
+        # Advanced-search values (the advanced route supplies its own results).
+        advanced_results=[],
+        advanced_performed=False,
+        advanced_error=None,
+        advanced_states=sorted(STATE_NAMES.items()),
+        advanced_values={},
+
+        # CAMPD search options
+        campd_datasets=campd_datasets,
+        campd_states=STATE_OPTIONS,
+        campd_emission_datasets=EMISSION_DATASETS,
+
+        # CAMPD selections
+        campd_state=campd_state,
+        campd_dataset=campd_dataset,
+        campd_year=campd_year,
+        campd_oris_code=campd_oris_code,
+        campd_begin_date=campd_begin_date,
+        campd_end_date=campd_end_date,
+        campd_page=campd_page,
+        campd_per_page=campd_per_page,
+
+        # CAMPD results and status
+        campd_records=campd_records,
+        campd_columns=campd_columns,
+        campd_total=campd_total,
+        campd_error=campd_error,
+        campd_searched=campd_searched,
     )
     
+    
+@main_bp.route("/advanced-search", methods=["GET"])
+def advanced_search():
+    values = {
+        "state": request.args.get("state", "").strip().upper(),
+        "year_from": request.args.get("year_from", "").strip(),
+        "year_to": request.args.get("year_to", "").strip(),
+        "fuel": request.args.get("fuel", "").strip(),
+        "facility_id": request.args.get("facility_id", "").strip(),
+        "unit_id": request.args.get("unit_id", "").strip(),
+        "metric": request.args.get("metric", "co2_mass").strip(),
+        "operator": request.args.get("operator", ">").strip(),
+        "value": request.args.get("value", "").strip(),
+        "value_to": request.args.get("value_to", "").strip(),
+    }
+
+    performed = any(values[key] for key in (
+        "state", "year_from", "year_to", "fuel",
+        "facility_id", "unit_id", "value",
+    ))
+
+    results = []
+    error = None
+    notice = None
+
+    metric_fields = {
+        "co2_mass": ("co2Mass", "co2_mass"),
+        "so2_mass": ("so2Mass", "so2_mass"),
+        "nox_mass": ("noxMass", "nox_mass"),
+        "heat_input": ("heatInput", "heat_input"),
+        "gross_load": ("grossLoad", "gross_load"),
+        "steam_load": ("steamLoad", "steam_load"),
+        "operating_time": ("operatingTime", "operating_time"),
+    }
+
+    operators = {"=", ">", ">=", "<", "<=", "between"}
+
+    if performed:
+        try:
+            # This endpoint aggregates emissions by facility. It cannot
+            # reliably perform unit-level or fuel-level filtering.
+            if values["fuel"]:
+                raise ValueError(
+                    "Fuel filtering is not supported by the annual "
+                    "facility endpoint. Clear the Fuel field to continue."
+                )
+
+            if values["unit_id"]:
+                raise ValueError(
+                    "Unit ID filtering is not supported by the annual "
+                    "facility endpoint. Clear the Unit ID field to continue."
+                )
+
+            state_codes = [code for code, _ in STATE_OPTIONS]
+
+            if values["state"]:
+                if values["state"] not in state_codes:
+                    raise ValueError("Choose a supported state.")
+                state_codes = [values["state"]]
+
+            year_from = (
+                int(values["year_from"]) if values["year_from"] else None
+            )
+            year_to = (
+                int(values["year_to"]) if values["year_to"] else None
+            )
+
+            if year_from is not None and not 2015 <= year_from <= 2025:
+                raise ValueError("The starting year must be from 2015 to 2025.")
+
+            if year_to is not None and not 2015 <= year_to <= 2025:
+                raise ValueError("The ending year must be from 2015 to 2025.")
+
+            if year_from and year_to and year_from > year_to:
+                raise ValueError(
+                    "The starting year must not exceed the ending year."
+                )
+
+            if values["facility_id"] and not values["facility_id"].isdigit():
+                raise ValueError("Facility ID must contain digits only.")
+
+            metric_names = metric_fields.get(values["metric"])
+            operator = values["operator"]
+
+            if values["value"]:
+                if metric_names is None or operator not in operators:
+                    raise ValueError(
+                        "Choose a valid measurement and operator."
+                    )
+
+                first = float(values["value"].replace(",", ""))
+                second = None
+
+                if operator == "between":
+                    if not values["value_to"]:
+                        raise ValueError(
+                            "Enter an upper value for the range search."
+                        )
+
+                    second = float(values["value_to"].replace(",", ""))
+
+                    if second < first:
+                        raise ValueError(
+                            "The upper value must not be below the lower value."
+                        )
+
+            # If no year is supplied, find the latest matching year for
+            # each state. If a range is supplied, query every year in it.
+            explicit_year_range = year_from is not None or year_to is not None
+
+            if explicit_year_range:
+                first_year = year_from if year_from is not None else 2015
+                last_year = year_to if year_to is not None else 2025
+                years = list(range(first_year, last_year + 1))
+            else:
+                years = list(range(2025, 2014, -1))
+
+            for state_code in state_codes:
+                for year in years:
+                    records, _ = _fetch_annual_facility_records(
+                        state_code,
+                        year,
+                        oris_code=values["facility_id"],
+                    )
+
+                    year_matches = []
+
+                    for record in records:
+                        if not isinstance(record, dict):
+                            continue
+
+                        record.setdefault("stateCode", state_code)
+                        record.setdefault("year", year)
+
+                        if values["value"]:
+                            raw_metric = _api_value(record, *metric_names)
+                            metric_value = _api_number(raw_metric)
+
+                            # Do not claim a metric filter worked if the
+                            # API record does not include that measurement.
+                            if metric_value is None:
+                                continue
+
+                            if operator == "=" and metric_value != first:
+                                continue
+                            if operator == ">" and metric_value <= first:
+                                continue
+                            if operator == ">=" and metric_value < first:
+                                continue
+                            if operator == "<" and metric_value >= first:
+                                continue
+                            if operator == "<=" and metric_value > first:
+                                continue
+                            if (
+                                operator == "between"
+                                and not first <= metric_value <= second
+                            ):
+                                continue
+
+                        year_matches.append(record)
+
+                    results.extend(year_matches)
+
+                    # Without a year range, keep only the latest year
+                    # that has matching results for each state.
+                    if year_matches and not explicit_year_range:
+                        break
+
+            if not results:
+                notice = (
+                    "No EPA records matched these filters. The annual "
+                    "facility endpoint may not expose every requested field."
+                )
+
+        except CAMPDServiceError as exc:
+            error = str(exc)
+        except (ValueError, TypeError) as exc:
+            error = str(exc) or (
+                "Please check the year and measurement values."
+            )
+
+    return render_template(
+        "search.html",
+        query="",
+        results=[],
+        search_performed=False,
+        search_mode="advanced",
+        advanced_results=results,
+        advanced_performed=performed,
+        advanced_error=error,
+        advanced_notice=notice,
+        advanced_states=sorted(STATE_NAMES.items()),
+        advanced_values=values,
+
+        campd_datasets=campd_datasets,
+        campd_states=STATE_OPTIONS,
+        campd_emission_datasets=EMISSION_DATASETS,
+        campd_state="",
+        campd_dataset="annual_facility",
+        campd_year="",
+        campd_oris_code="",
+        campd_begin_date="",
+        campd_end_date="",
+        campd_page=1,
+        campd_per_page=50,
+        campd_records=[],
+        campd_columns=[],
+        campd_total=None,
+        campd_error=None,
+        campd_searched=False,
+    )
