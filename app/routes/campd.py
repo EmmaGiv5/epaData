@@ -5,6 +5,7 @@ from app.services.campd_service import (
     CAMPDServiceError,
     fetch_dataset,
     filter_records,
+    save_campd_records,
 )
 
 campd_bp = Blueprint(
@@ -66,6 +67,13 @@ def search():
                 page=page,
                 per_page=per_page,
             )
+            
+            if dataset != "facilities":
+                saved_count = save_campd_records(
+                    dataset=dataset,
+                    records=result["records"],
+                    filters=filters,
+                )
 
             records = filter_records(
                 result["records"],

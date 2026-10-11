@@ -1,3 +1,4 @@
+
 <!-- common layer on each page -->
 
 <!DOCTYPE html>
@@ -5,14 +6,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    
-    <link rel="stylesheet" href="style.css">
-    
 
     <title>{% block title %}epaData{% endblock %}</title>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='js/css/style.css') }}">
-
 </head>
 
 <body>
@@ -21,18 +18,20 @@
     <nav>
         <h1>Data Overview</h1>
         <div class="welcome-bar">
-            <h1>Welcome, </h1>
+            <!-- <h1>Welcome, </h1> -->
 
-            <!-- *** Can add a variable for the username HERE *** -->
-            {% if session.get("user_id") %}
+        <!-- *** Can add a variable for the username HERE *** -->
+        <!-- {% if session.get("user_id") %} -->
 
-            Logged in as {{ session.get("user_email") }}
+        <h1> Logged in with {{ session.get("user_email") }} </h1>
 
-            <br>
+        <!--
+        <br>
 
-            <a href="{{ url_for('main.logout') }}">
-                Logout
-            </a>
+        <a href="{{ url_for('main.logout') }}">
+            Logout
+        </a>
+        
 
         {% else %}
 
@@ -40,9 +39,9 @@
                 Login
             </a>
 
-        {% endif %} 
+        {% endif %}
+        -->
         </div>
-        <a href="/login">Login</a>
     </nav>
 
 
