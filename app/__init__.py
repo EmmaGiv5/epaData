@@ -44,7 +44,7 @@ def create_app():
     app.register_blueprint(main_bp)
     app.register_blueprint(explorer_bp)
     # Require login before accessing protected pages
-    ''' 
+    
     @app.before_request
     def require_login():
         # Allow static files through.

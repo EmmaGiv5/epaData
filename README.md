@@ -36,7 +36,8 @@ The Data Download page exports local annual-emissions records, one selected
 uploaded dataset's annual-emissions records, CAMPD retrieval provenance, or
 one page from a live CAMPD emissions request. Local annual records can be
 filtered by state, year, facility, unit, fuel, unit type, control technology,
-and numeric ranges. Live CAMPD filters depend on the endpoint and support a
+and numeric ranges. 
+Live CAMPD filters depend on the endpoint and support a
 state, year or hourly date range, and optional facility ID for by-facility
 endpoints. Downloads are currently CSV only. Invalid-upload rows are not
 offered because the application does not currently retain a downloadable
