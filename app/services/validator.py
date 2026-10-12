@@ -213,5 +213,5 @@ def validate_dataframe(dataframe):
             column_result["valid"]
             and len(value_errors) == 0
             and len(duplicates) == 0
-        ),
+        )
     }

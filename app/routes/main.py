@@ -224,6 +224,23 @@ def upload():
                 flash("The uploaded file could not be found.", "error")
                 return redirect(url_for("main.upload"))
 
+            original_filename = secure_filename(
+                request.form.get("original_filename")
+                or saved_filename
+            )
+
+            already_imported = Dataset.query.filter_by(
+                original_filename=original_filename,
+                data_source="EPA uploaded file",
+            ).first()
+
+            if already_imported is not None:
+                flash(
+                    "This dataset has already been imported.",
+                    "error",
+                )
+                return redirect(url_for("main.upload"))
+
             try:
                 dataframe = read_uploaded_file(file_path)
                 dataframe = normalize_columns(dataframe)
@@ -247,14 +264,14 @@ def upload():
                         saved_filename=saved_filename,
                     )
 
-                imported_count = import_dataframe(
+                imported_count, updated_count = import_dataframe(
                     dataframe,
-                    request.form.get("original_filename")
-                    or saved_filename,
+                    original_filename,
                 )
 
                 flash(
-                    f"Import successful. {imported_count} annual records were imported.",
+                    f"Import successful. {imported_count} annual records were processed; "
+                    f"{updated_count} existing records were updated.",
                     "success",
                 )
 
@@ -429,6 +446,7 @@ def import_dataframe(dataframe, original_filename):
     unit_cache = {}
 
     imported_count = 0
+    updated_count = 0
 
     # ---------------------------------------------------------
     # Import each row
@@ -446,20 +464,25 @@ def import_dataframe(dataframe, original_filename):
 
         if facility_key not in facility_cache:
 
-            facility = Facility(
-                dataset_id=dataset.id,
-                epa_facility_id=facility_key,
-                facility_name=str(
-                    row["facility_name"]
-                ),
-                state=str(
-                    row["state"]
-                ),
-                source_category=None
-            )
+            facility = Facility.query.filter_by(
+                epa_facility_id=facility_key
+            ).one_or_none()
 
-            db.session.add(facility)
-            db.session.flush()
+            if facility is None:
+                facility = Facility(
+                    dataset_id=dataset.id,
+                    epa_facility_id=facility_key,
+                    facility_name=str(
+                        row["facility_name"]
+                    ),
+                    state=str(
+                        row["state"]
+                    ),
+                    source_category=None
+                )
+
+                db.session.add(facility)
+                db.session.flush()
 
             facility_cache[facility_key] = facility
 
@@ -476,30 +499,36 @@ def import_dataframe(dataframe, original_filename):
 
         if unit_key not in unit_cache:
 
-            unit = Unit(
+            unit = Unit.query.filter_by(
                 facility_id=facility.id,
-                epa_unit_id=str(
-                    row["epa_unit_id"]
-                ),
-                unit_type=(
-                    None
-                    if str(row["unit_type"]) == "nan"
-                    else str(row["unit_type"])
-                ),
-                primary_fuel=(
-                    None
-                    if str(row["primary_fuel"]) == "nan"
-                    else str(row["primary_fuel"])
-                ),
-                secondary_fuel=(
-                    None
-                    if str(row["secondary_fuel"]) == "nan"
-                    else str(row["secondary_fuel"])
-                ),
-            )
+                epa_unit_id=str(row["epa_unit_id"]),
+            ).one_or_none()
 
-            db.session.add(unit)
-            db.session.flush()
+            if unit is None:
+                unit = Unit(
+                    facility_id=facility.id,
+                    epa_unit_id=str(
+                        row["epa_unit_id"]
+                    ),
+                    unit_type=(
+                        None
+                        if str(row["unit_type"]) == "nan"
+                        else str(row["unit_type"])
+                    ),
+                    primary_fuel=(
+                        None
+                        if str(row["primary_fuel"]) == "nan"
+                        else str(row["primary_fuel"])
+                    ),
+                    secondary_fuel=(
+                        None
+                        if str(row["secondary_fuel"]) == "nan"
+                        else str(row["secondary_fuel"])
+                    ),
+                )
+
+                db.session.add(unit)
+                db.session.flush()
 
             unit_cache[unit_key] = unit
 
@@ -509,81 +538,77 @@ def import_dataframe(dataframe, original_filename):
         # Annual Record
         # -----------------------------------------------------
 
-        record = AnnualRecord(
-            unit_id=unit.id,
-
-            reporting_year=int(
-                row["reporting_year"]
-            ),
-
-            operating_time=(
+        record_values = {
+            "unit_id": unit.id,
+            "reporting_year": int(row["reporting_year"]),
+            "operating_time": (
                 None
                 if str(row["operating_time"]) == "nan"
                 else float(row["operating_time"])
             ),
-
-            gross_load=(
+            "gross_load": (
                 None
                 if str(row["gross_load"]) == "nan"
                 else float(row["gross_load"])
             ),
-
-            steam_load=(
+            "steam_load": (
                 None
                 if str(row["steam_load"]) == "nan"
                 else float(row["steam_load"])
             ),
-
-            heat_input=(
+            "heat_input": (
                 None
                 if str(row["heat_input"]) == "nan"
                 else float(row["heat_input"])
             ),
-
-            co2_mass=(
+            "co2_mass": (
                 None
                 if str(row["co2_mass"]) == "nan"
                 else float(row["co2_mass"])
             ),
-
-            so2_mass=(
+            "so2_mass": (
                 None
                 if str(row["so2_mass"]) == "nan"
                 else float(row["so2_mass"])
             ),
-
-            nox_mass=(
+            "nox_mass": (
                 None
                 if str(row["nox_mass"]) == "nan"
                 else float(row["nox_mass"])
             ),
-
-            so2_control=(
+            "so2_control": (
                 None
                 if str(row["so2_control"]) == "nan"
                 else str(row["so2_control"])
             ),
-
-            nox_control=(
+            "nox_control": (
                 None
                 if str(row["nox_control"]) == "nan"
                 else str(row["nox_control"])
             ),
-
-            pm_control=(
+            "pm_control": (
                 None
                 if str(row["pm_control"]) == "nan"
                 else str(row["pm_control"])
             ),
-
-            program_code=(
+            "program_code": (
                 None
                 if str(row["program_code"]) == "nan"
                 else str(row["program_code"])
             ),
-        )
+        }
 
-        db.session.add(record)
+        record = AnnualRecord.query.filter_by(
+            unit_id=unit.id,
+            reporting_year=record_values["reporting_year"],
+        ).one_or_none()
+
+        if record is None:
+            db.session.add(AnnualRecord(**record_values))
+        else:
+            for field, value in record_values.items():
+                setattr(record, field, value)
+            updated_count += 1
 
         imported_count += 1
 
@@ -631,7 +656,7 @@ def import_dataframe(dataframe, original_filename):
 
     db.session.commit()
 
-    return imported_count
+    return imported_count, updated_count
 
 @main_bp.route("/data")
 def data_explorer():
