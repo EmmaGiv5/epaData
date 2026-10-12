@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 
 {% block title %}
@@ -21,6 +22,24 @@ Explorer | epaData
     <form method="GET" action="{{ url_for('explorer.explorer') }}">
 
         <h2>Filters</h2>
+
+        <!-- Data Source -->
+        <div class="pagesLight">
+            <h3>Data Source</h3>
+
+            <label for="dataset">Dataset:</label>
+
+            <select name="dataset" id="dataset">
+                {% for dataset_key, dataset_info in datasets.items() %}
+                    <option value="{{ dataset_key }}"
+                        {% if selected_dataset == dataset_key %}selected{% endif %}>
+                        {{ dataset_info.label }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <br><br>
 
         <div class="pagesLight">
 
@@ -47,23 +66,23 @@ Explorer | epaData
 
             <!-- State -->
 
-        <h3>State</h3>
+            <h3>State</h3>
 
-        <select name="state" id="state">
-            <option value=""
-                {% if not selected_state %}selected{% endif %}>
-                All states
-            </option>
-
-            {% for state_code, state_name in campd_states %}
-                <option
-                    value="{{ state_code }}"
-                    {% if selected_state == state_code %}selected{% endif %}
-                >
-                    {{ state_name }}
+            <select name="state" id="state">
+                <option value=""
+                    {% if not selected_state %}selected{% endif %}>
+                    All states
                 </option>
-            {% endfor %}
-        </select>
+
+                {% for state_code, state_name in campd_states %}
+                    <option
+                        value="{{ state_code }}"
+                        {% if selected_state == state_code %}selected{% endif %}
+                    >
+                        {{ state_name }}
+                    </option>
+                {% endfor %}
+            </select>
 
         </div>
 
@@ -104,14 +123,12 @@ Explorer | epaData
                 </option>
 
                 {% for fuel_option in fuels %}
-
-                <option
-                    value="{{ fuel_option }}"
-                    {% if selected_fuel == fuel_option %}selected{% endif %}
-                >
-                    {{ fuel_option }}
-                </option>
-
+                    <option
+                        value="{{ fuel_option }}"
+                        {% if selected_fuel == fuel_option %}selected{% endif %}
+                    >
+                        {{ fuel_option }}
+                    </option>
                 {% endfor %}
 
             </select>
@@ -133,14 +150,12 @@ Explorer | epaData
                 </option>
 
                 {% for year_option in years %}
-
-                <option
-                    value="{{ year_option }}"
-                    {% if selected_year == year_option|string %}selected{% endif %}
-                >
-                    {{ year_option }}
-                </option>
-
+                    <option
+                        value="{{ year_option }}"
+                        {% if selected_year == year_option|string %}selected{% endif %}
+                    >
+                        {{ year_option }}
+                    </option>
                 {% endfor %}
 
             </select>
@@ -162,14 +177,12 @@ Explorer | epaData
                 </option>
 
                 {% for control_option in controls %}
-
-                <option
-                    value="{{ control_option }}"
-                    {% if selected_control == control_option %}selected{% endif %}
-                >
-                    {{ control_option }}
-                </option>
-
+                    <option
+                        value="{{ control_option }}"
+                        {% if selected_control == control_option %}selected{% endif %}
+                    >
+                        {{ control_option }}
+                    </option>
                 {% endfor %}
 
             </select>
@@ -185,7 +198,6 @@ Explorer | epaData
             <h3>Numeric Ranges</h3>
 
             <table>
-
                 <tr>
                     <th>Measure</th>
                     <th>Minimum</th>
@@ -194,7 +206,6 @@ Explorer | epaData
 
                 <tr>
                     <td>Gross Load</td>
-
                     <td>
                         <input
                             type="number"
@@ -203,7 +214,6 @@ Explorer | epaData
                             value="{{ min_gross_load }}"
                         >
                     </td>
-
                     <td>
                         <input
                             type="number"
@@ -216,7 +226,6 @@ Explorer | epaData
 
                 <tr>
                     <td>CO2 Mass</td>
-
                     <td>
                         <input
                             type="number"
@@ -225,7 +234,6 @@ Explorer | epaData
                             value="{{ min_co2 }}"
                         >
                     </td>
-
                     <td>
                         <input
                             type="number"
@@ -238,7 +246,6 @@ Explorer | epaData
 
                 <tr>
                     <td>SO2 Mass</td>
-
                     <td>
                         <input
                             type="number"
@@ -247,7 +254,6 @@ Explorer | epaData
                             value="{{ min_so2 }}"
                         >
                     </td>
-
                     <td>
                         <input
                             type="number"
@@ -260,7 +266,6 @@ Explorer | epaData
 
                 <tr>
                     <td>NOx Mass</td>
-
                     <td>
                         <input
                             type="number"
@@ -269,7 +274,6 @@ Explorer | epaData
                             value="{{ min_nox }}"
                         >
                     </td>
-
                     <td>
                         <input
                             type="number"
@@ -282,7 +286,6 @@ Explorer | epaData
 
                 <tr>
                     <td>Heat Input</td>
-
                     <td>
                         <input
                             type="number"
@@ -291,7 +294,6 @@ Explorer | epaData
                             value="{{ min_heat_input }}"
                         >
                     </td>
-
                     <td>
                         <input
                             type="number"
@@ -301,7 +303,6 @@ Explorer | epaData
                         >
                     </td>
                 </tr>
-
             </table>
 
         </div>
@@ -324,8 +325,7 @@ Explorer | epaData
                 name="min_year"
                 value="{{ min_year }}"
                 placeholder="e.g. 2015"
-        >
-
+            >
 
             <label for="max_year">
                 To Year:
@@ -389,18 +389,17 @@ Explorer | epaData
 
             </select>
 
-
             <select name="sort_order" id="sort_order">
 
-            <option value="desc"
-                {% if sort_order == "desc" %}selected{% endif %}>
-                Descending
-            </option>
+                <option value="desc"
+                    {% if sort_order == "desc" %}selected{% endif %}>
+                    Descending
+                </option>
 
-            <option value="asc"
-                {% if sort_order == "asc" %}selected{% endif %}>
-                Ascending
-            </option>
+                <option value="asc"
+                    {% if sort_order == "asc" %}selected{% endif %}>
+                    Ascending
+                </option>
 
             </select>
 
@@ -443,30 +442,30 @@ Explorer | epaData
 
             <select name="rank_by" id="rank_by">
 
-            <option value="co2_mass"
-                {% if rank_by == "co2_mass" %}selected{% endif %}>
-                CO2 Mass
-            </option>
+                <option value="co2_mass"
+                    {% if rank_by == "co2_mass" %}selected{% endif %}>
+                    CO2 Mass
+                </option>
 
-            <option value="so2_mass"
-                {% if rank_by == "so2_mass" %}selected{% endif %}>
-                SO2 Mass
-            </option>
+                <option value="so2_mass"
+                    {% if rank_by == "so2_mass" %}selected{% endif %}>
+                    SO2 Mass
+                </option>
 
-            <option value="nox_mass"
-                {% if rank_by == "nox_mass" %}selected{% endif %}>
-                NOx Mass
-            </option>
+                <option value="nox_mass"
+                    {% if rank_by == "nox_mass" %}selected{% endif %}>
+                    NOx Mass
+                </option>
 
-            <option value="gross_load"
-                {% if rank_by == "gross_load" %}selected{% endif %}>
-                Gross Load
-            </option>
+                <option value="gross_load"
+                    {% if rank_by == "gross_load" %}selected{% endif %}>
+                    Gross Load
+                </option>
 
-            <option value="heat_input"
-                {% if rank_by == "heat_input" %}selected{% endif %}>
-                Heat Input
-            </option>
+                <option value="heat_input"
+                    {% if rank_by == "heat_input" %}selected{% endif %}>
+                    Heat Input
+                </option>
 
             </select>
 
@@ -493,9 +492,9 @@ Explorer | epaData
                 Clear Filters
             </a>
 
-        </form>
+        </div>
 
-    </div>
+    </form>
 
     <br><br>
 
@@ -507,62 +506,47 @@ Explorer | epaData
 
         <p>
             Records found:
-            <strong>{{ records|length }}</strong>
+            <strong>{{ pagination.total if pagination else records|length }}</strong>
         </p>
-
 
         {% if records %}
 
         <table border="1" cellpadding="5" cellspacing="0">
 
             <thead>
-
                 <tr>
                     <th>Year</th>
+                    <th>Date</th>
+                    <th>Hour</th>
                     <th>State</th>
                     <th>Facility</th>
                     <th>Facility ID</th>
-                    <th>Unit ID</th>
-                    <th>Unit Type</th>
-                    <th>Primary Fuel</th>
                     <th>Gross Load</th>
                     <th>CO2 Mass</th>
                     <th>SO2 Mass</th>
                     <th>NOx Mass</th>
                     <th>Heat Input</th>
-                    <th>SO2 Control</th>
-                    <th>NOx Control</th>
-                    <th>PM Control</th>
+                    <th>Steam Load</th>
                 </tr>
-
             </thead>
 
             <tbody>
-
                 {% for record in records %}
-
                 <tr>
-
-                    <td>{{ record.reporting_year }}</td>
-                    <td>{{ record.unit.facility.state }}</td>
-                    <td>{{ record.unit.facility.facility_name }}</td>
-                    <td>{{ record.unit.facility.epa_facility_id }}</td>
-                    <td>{{ record.unit.epa_unit_id }}</td>
-                    <td>{{ record.unit.unit_type }}</td>
-                    <td>{{ record.unit.primary_fuel }}</td>
-                    <td>{{ record.gross_load }}</td>
-                    <td>{{ record.co2_mass }}</td>
-                    <td>{{ record.so2_mass }}</td>
-                    <td>{{ record.nox_mass }}</td>
-                    <td>{{ record.heat_input }}</td>
-                    <td>{{ record.so2_control }}</td>
-                    <td>{{ record.nox_control }}</td>
-                    <td>{{ record.pm_control }}</td>
-
+                    <td>{{ record.get('year', '') }}</td>
+                    <td>{{ record.get('date', '') }}</td>
+                    <td>{{ record.get('hour', '') }}</td>
+                    <td>{{ record.get('state', '') }}</td>
+                    <td>{{ record.get('facility_name', '') }}</td>
+                    <td>{{ record.get('facility_id', '') }}</td>
+                    <td>{{ record.get('gross_load', '') }}</td>
+                    <td>{{ record.get('co2_mass', '') }}</td>
+                    <td>{{ record.get('so2_mass', '') }}</td>
+                    <td>{{ record.get('nox_mass', '') }}</td>
+                    <td>{{ record.get('heat_input', '') }}</td>
+                    <td>{{ record.get('steam_load', '') }}</td>
                 </tr>
-
                 {% endfor %}
-
             </tbody>
 
         </table>
@@ -575,28 +559,41 @@ Explorer | epaData
 
         {% endif %}
 
-
-        {% if pagination.pages > 1 %}
+        {% if pagination and pagination.pages > 1 %}
 
         <hr>
 
         <div>
 
+            <!-- Previous Page -->
+
             {% if pagination.has_prev %}
             <a href="{{ url_for(
                 'explorer.explorer',
+                dataset=selected_dataset,
                 facility=selected_facility,
                 state=selected_state,
                 unit=selected_unit,
                 fuel=selected_fuel,
                 year=selected_year,
                 control=selected_control,
+                min_gross_load=min_gross_load,
+                max_gross_load=max_gross_load,
                 min_co2=min_co2,
                 max_co2=max_co2,
-                min_nox=min_nox,
-                max_nox=max_nox,
                 min_so2=min_so2,
                 max_so2=max_so2,
+                min_nox=min_nox,
+                max_nox=max_nox,
+                min_heat_input=min_heat_input,
+                max_heat_input=max_heat_input,
+                min_year=min_year,
+                max_year=max_year,
+                sort_by=sort_by,
+                sort_order=sort_order,
+                rank_mode=rank_mode,
+                rank_by=rank_by,
+                rank_n=rank_n,
                 page=pagination.prev_num
             ) }}">
                 Previous
@@ -611,21 +608,35 @@ Explorer | epaData
 
             &nbsp;
 
+            <!-- Next Page -->
+
             {% if pagination.has_next %}
             <a href="{{ url_for(
                 'explorer.explorer',
+                dataset=selected_dataset,
                 facility=selected_facility,
                 state=selected_state,
                 unit=selected_unit,
                 fuel=selected_fuel,
                 year=selected_year,
                 control=selected_control,
+                min_gross_load=min_gross_load,
+                max_gross_load=max_gross_load,
                 min_co2=min_co2,
                 max_co2=max_co2,
-                min_nox=min_nox,
-                max_nox=max_nox,
                 min_so2=min_so2,
                 max_so2=max_so2,
+                min_nox=min_nox,
+                max_nox=max_nox,
+                min_heat_input=min_heat_input,
+                max_heat_input=max_heat_input,
+                min_year=min_year,
+                max_year=max_year,
+                sort_by=sort_by,
+                sort_order=sort_order,
+                rank_mode=rank_mode,
+                rank_by=rank_by,
+                rank_n=rank_n,
                 page=pagination.next_num
             ) }}">
                 Next
@@ -633,12 +644,12 @@ Explorer | epaData
             {% endif %}
 
         </div>
-    </div>
+
         {% endif %}
 
-    <br><br>
+    </div>
 
-    
+    <br><br>
 
 </div>
 
