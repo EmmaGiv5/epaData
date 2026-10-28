@@ -167,18 +167,11 @@ Invalid-upload rows are not downloadable because the application does not curren
 
 ### Recreate the WSL environment
 
-```bashe
+```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
-
-
-
-
-
-
-
 
 
 
