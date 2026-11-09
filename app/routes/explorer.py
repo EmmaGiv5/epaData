@@ -185,19 +185,29 @@ def explorer():
             campd_error = str(exc)
 
     # Reflect the selected, existing Supabase table.
+
     dataset_config = LOCAL_DATASETS[dataset_key]
+
     metadata = MetaData()
 
     try:
-        table = Table(
+        with db.engine.connect() as connection:
+            table = Table(
+                dataset_config["table"],
+                metadata,
+                schema="public",
+                autoload_with=connection,
+            )
+    except Exception as exc:
+        explorer_bp.logger.exception(
+            "Unable to reflect Supabase table: %s",
             dataset_config["table"],
-            metadata,
-            autoload_with=db.engine,
         )
-    except Exception:
-        # A missing table or database connection should not silently look
-        # like a successful search returning zero rows.
-        raise
+        
+        raise RuntimeError(
+            f"Unable to load dataset '{dataset_config['label']}'. "
+            "Check the Supabase database connection and table permissions."
+        ) from exc
 
     columns = {
         key: get_column(table, candidates)
