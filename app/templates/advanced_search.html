@@ -15,7 +15,8 @@ Advanced Search | epaData
         Combine multiple filters. All supplied conditions must match.
     </p>
 
-    <form method="GET" action="{{ url_for('main.advanced_search') }}">
+    <form method="GET" action="{{ url_for('main.results') }}">
+        <input type="hidden" name="search_type" value="advanced">
 
         <label for="advanced_state">State:</label>
         <select id="advanced_state" name="state">
@@ -138,31 +139,5 @@ Advanced Search | epaData
         <p class="error" role="alert">{{ advanced_error }}</p>
     {% endif %}
 </section>
-
-{% if advanced_performed and not advanced_error %}
-<section class="hero">
-    <h2>Advanced Search Results</h2>
-
-    {% if advanced_notice %}
-        <p>{{ advanced_notice }}</p>
-    {% endif %}
-
-    {% if advanced_results %}
-        <p>Found {{ advanced_results|length }} matching EPA record(s).</p>
-
-        {% for record in advanced_results %}
-            <div class="search-result">
-                {% for key, value in record.items() %}
-                    <p>
-                        <strong>{{ key }}:</strong>
-                        {{ value if value is not none else "Not available" }}
-                    </p>
-                {% endfor %}
-                <hr>
-            </div>
-        {% endfor %}
-    {% endif %}
-</section>
-{% endif %}
 
 {% endblock %}

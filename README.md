@@ -103,15 +103,17 @@ Open the Data Explorer at:
 Choose a dataset from the **Data Source** dropdown:
 
 * `annual_emissions_facility` — annual records by facility.
-* `annual_emissions_state` — annual records by state.
+* `annual_state` — annual state-level records from the `calc_data_annual` table.
 * `hourly_emissions_facility` — hourly records by facility.
-* `hourly_emissions_state` — hourly records by state.
+* `hourly_state` — hourly state-level records from the `calc_data_hourly` table.
 
 Available fields can include state, facility name and ID, year, date, hour, gross load, steam load, CO₂ mass, SO₂ mass, NOₓ mass, and heat input.
 
 Use the available filters, sorting options, and pagination to explore results. Fields and filters depend on the selected dataset. For example, fuel type, unit type, and control technology cannot be reliably filtered when that information is absent from the source table.
 
 The Data Explorer queries **local database records**. Live CAMPD searches are separate and do not automatically save their returned emissions records locally.
+
+Advanced Search uses the `facilities_data` table to match fuel and unit filters to facility IDs, then filters live annual CAMPD results by those facilities. CAMPD annual emissions are facility-level aggregates; matching a unit or fuel does not split those emissions by unit or fuel.
 
 ## Where the data comes from
 

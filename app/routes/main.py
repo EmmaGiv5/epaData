@@ -21,7 +21,8 @@ load_dotenv()
 
 import uuid
 from datetime import datetime
-from sqlalchemy import or_, cast, String
+from sqlalchemy import MetaData, Table, or_, cast, String, select
+from sqlalchemy.exc import NoSuchTableError
 
 from flask import (
     Blueprint,
@@ -852,6 +853,93 @@ def _api_number(value):
         return None
 
 
+def _normalized_facility_id(value):
+    if value is None:
+        return None
+
+    text = str(value).strip()
+    if text.endswith(".0") and text[:-2].isdigit():
+        text = text[:-2]
+    if text.isdigit():
+        return str(int(text))
+    return text.upper()
+
+
+def _facilities_data_table():
+    try:
+        table = Table(
+            "facilities_data",
+            MetaData(),
+            autoload_with=db.engine,
+        )
+    except NoSuchTableError as exc:
+        raise CAMPDServiceError(
+            "Fuel and unit filters require the facilities_data table."
+        ) from exc
+
+    required_columns = (
+        "State",
+        "Year",
+        "Facility ID",
+        "Unit ID",
+        "Primary Fuel Type",
+        "Secondary Fuel Type",
+    )
+    missing_columns = [
+        name for name in required_columns if name not in table.c
+    ]
+    if missing_columns:
+        raise CAMPDServiceError(
+            "The facilities_data table is missing required columns: "
+            + ", ".join(missing_columns)
+        )
+
+    return table
+
+
+def _facility_ids_for_search(table, state_code, year, fuel="", unit_id=""):
+    """Find facility IDs with matching fuel or unit metadata for a year."""
+    conditions = [
+        table.c["State"] == state_code,
+        table.c["Year"] == year,
+    ]
+
+    if fuel:
+        fuel_pattern = f"%{fuel}%"
+        conditions.append(
+            or_(
+                table.c["Primary Fuel Type"].ilike(fuel_pattern),
+                table.c["Secondary Fuel Type"].ilike(fuel_pattern),
+            )
+        )
+
+    if unit_id:
+        conditions.append(
+            cast(table.c["Unit ID"], String).ilike(f"%{unit_id}%")
+        )
+
+    facility_ids = db.session.execute(
+        select(table.c["Facility ID"]).where(*conditions)
+    ).scalars()
+    return {
+        normalized_id
+        for value in facility_ids
+        if (normalized_id := _normalized_facility_id(value)) is not None
+    }
+
+
+def _record_facility_id(record):
+    return _normalized_facility_id(
+        _api_value(
+            record,
+            "orisCode",
+            "facilityId",
+            "facility_id",
+            "facilityNumber",
+        )
+    )
+
+
 def _fetch_annual_facility_records(state_code, year, oris_code=""):
     """Fetch up to 500 annual facility records for a state/year."""
     filters = build_dataset_filters(
@@ -893,6 +981,23 @@ def search():
     return render_template("search.html")
 
 
+@main_bp.route("/results", methods=["GET"])
+def results():
+    """Dispatch a submitted search to its dedicated results view."""
+    search_handlers = {
+        "basic": basic_search,
+        "advanced": advanced_search,
+        "campd": campd_search,
+    }
+    search_type = request.args.get("search_type", "")
+    handler = search_handlers.get(search_type)
+
+    if handler is None:
+        return redirect(url_for("main.search"))
+
+    return handler()
+
+
 @main_bp.route("/basic-search", methods=["GET"])
 def basic_search():
     """Basic and description-based EPA search."""
@@ -929,9 +1034,25 @@ def basic_search():
 
             residual_terms = residual.lower().split()
             matches = []
+            facility_table = (
+                _facilities_data_table()
+                if "fuel" in interpreted
+                else None
+            )
 
             for state_code in state_codes:
                 for year in years:
+                    matching_facility_ids = None
+                    if "fuel" in interpreted:
+                        matching_facility_ids = _facility_ids_for_search(
+                            facility_table,
+                            state_code,
+                            year,
+                            fuel=interpreted["fuel"],
+                        )
+                        if not matching_facility_ids:
+                            continue
+
                     records, _ = _fetch_annual_facility_records(
                         state_code, year
                     )
@@ -954,24 +1075,13 @@ def basic_search():
                                 continue
 
                         if "fuel" in interpreted:
-                            fuel_value = _api_value(
-                                record,
-                                "primaryFuel",
-                                "secondaryFuel",
-                                "fuelType",
-                                "fuel",
-                            )
-
-                            if fuel_value is None:
+                            facility_id = _record_facility_id(record)
+                            if facility_id is None:
                                 raise CAMPDServiceError(
-                                    "The annual facility endpoint does not "
-                                    "provide fuel details for these records. "
-                                    "Try searching by facility, state, or year."
+                                    "CAMPD did not return a facility ID, so "
+                                    "the fuel filter could not be applied."
                                 )
-
-                            if interpreted["fuel"].lower() not in str(
-                                fuel_value
-                            ).lower():
+                            if facility_id not in matching_facility_ids:
                                 continue
 
                         searchable_text = " ".join(
@@ -1007,6 +1117,18 @@ def basic_search():
         except (CAMPDServiceError, ValueError, TypeError) as exc:
             basic_error = str(exc)
             results = []
+
+    if query_text and basic_error is None:
+        return render_template(
+            "results.html",
+            result_kind="records",
+            result_title="Basic Search Results",
+            result_source="EPA annual facility data",
+            query=query_text,
+            results=results,
+            notice=basic_notice,
+            back_url=url_for("main.basic_search", query=query_text),
+        )
 
     return render_template(
         "basic_search.html",
@@ -1074,6 +1196,38 @@ def campd_search():
         except CAMPDServiceError as exc:
             campd_error = str(exc)
 
+    if campd_searched:
+        return render_template(
+            "results.html",
+            result_kind="campd",
+            result_title="Live CAMPD Results",
+            result_source="EPA CAMPD API",
+            campd_datasets=campd_datasets,
+            campd_states=STATE_OPTIONS,
+            campd_state=campd_state,
+            campd_dataset=campd_dataset,
+            campd_year=campd_year,
+            campd_oris_code=campd_oris_code,
+            campd_begin_date=campd_begin_date,
+            campd_end_date=campd_end_date,
+            campd_page=campd_page,
+            campd_per_page=campd_per_page,
+            campd_records=campd_records,
+            campd_columns=campd_columns,
+            campd_total=campd_total,
+            campd_error=campd_error,
+            back_url=url_for(
+                "main.campd_search",
+                campd_state=campd_state,
+                campd_dataset=campd_dataset,
+                campd_year=campd_year,
+                campd_oris_code=campd_oris_code,
+                campd_begin_date=campd_begin_date,
+                campd_end_date=campd_end_date,
+                campd_per_page=campd_per_page,
+            ),
+        )
+
     return render_template(
         "campd_search.html",
         campd_datasets=campd_datasets,
@@ -1133,20 +1287,6 @@ def advanced_search():
 
     if performed:
         try:
-            # This endpoint aggregates emissions by facility. It cannot
-            # reliably perform unit-level or fuel-level filtering.
-            if values["fuel"]:
-                raise ValueError(
-                    "Fuel filtering is not supported by the annual "
-                    "facility endpoint. Clear the Fuel field to continue."
-                )
-
-            if values["unit_id"]:
-                raise ValueError(
-                    "Unit ID filtering is not supported by the annual "
-                    "facility endpoint. Clear the Unit ID field to continue."
-                )
-
             state_codes = [code for code, _ in STATE_OPTIONS]
 
             if values["state"]:
@@ -1211,8 +1351,33 @@ def advanced_search():
             else:
                 years = list(range(2025, 2014, -1))
 
+            facility_table = (
+                _facilities_data_table()
+                if values["fuel"] or values["unit_id"]
+                else None
+            )
+
             for state_code in state_codes:
                 for year in years:
+                    matching_facility_ids = None
+                    if values["fuel"] or values["unit_id"]:
+                        matching_facility_ids = _facility_ids_for_search(
+                            facility_table,
+                            state_code,
+                            year,
+                            fuel=values["fuel"],
+                            unit_id=values["unit_id"],
+                        )
+                        if values["facility_id"]:
+                            requested_facility_id = _normalized_facility_id(
+                                values["facility_id"]
+                            )
+                            matching_facility_ids.intersection_update(
+                                {requested_facility_id}
+                            )
+                        if not matching_facility_ids:
+                            continue
+
                     records, _ = _fetch_annual_facility_records(
                         state_code,
                         year,
@@ -1224,6 +1389,17 @@ def advanced_search():
                     for record in records:
                         if not isinstance(record, dict):
                             continue
+
+                        if matching_facility_ids is not None:
+                            facility_id = _record_facility_id(record)
+                            if facility_id is None:
+                                raise CAMPDServiceError(
+                                    "CAMPD did not return a facility ID, "
+                                    "so the fuel or unit filter could not "
+                                    "be applied."
+                                )
+                            if facility_id not in matching_facility_ids:
+                                continue
 
                         record.setdefault("stateCode", state_code)
                         record.setdefault("year", year)
@@ -1274,6 +1450,20 @@ def advanced_search():
             error = str(exc) or (
                 "Please check the year and measurement values."
             )
+
+    if performed and error is None:
+        return render_template(
+            "results.html",
+            result_kind="records",
+            result_title="Advanced Search Results",
+            result_source="EPA annual facility data",
+            results=results,
+            notice=notice,
+            back_url=url_for(
+                "main.advanced_search",
+                **request.args.to_dict(),
+            ),
+        )
 
     return render_template(
         "advanced_search.html",
