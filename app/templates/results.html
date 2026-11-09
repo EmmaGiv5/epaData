@@ -8,10 +8,166 @@ Results | epaData
 
 {% block content %}
 
-<!-- Page-specific results go here -->
-<main>
-    {% block results %}
-    {% endblock %}
-</main>
+<section class="hero">
+    <h1>{{ result_title }}</h1>
+
+    {% if result_source %}
+        <p>Source: {{ result_source }}</p>
+    {% endif %}
+
+    {% if campd_error %}
+        <p class="error" role="alert">{{ campd_error }}</p>
+    {% elif notice %}
+        <p>{{ notice }}</p>
+    {% endif %}
+
+    {% if result_kind == "records" %}
+        {% if results %}
+            <p>Found {{ results|length }} matching record(s).</p>
+
+            {% for record in results %}
+                <div class="search-result">
+                    {% for key, value in record.items() %}
+                        <p>
+                            <strong>{{ key }}:</strong>
+                            {{ value if value is not none else "Not available" }}
+                        </p>
+                    {% endfor %}
+                    <hr>
+                </div>
+            {% endfor %}
+        {% elif not notice %}
+            <p>No matching records were found.</p>
+        {% endif %}
+    {% elif result_kind == "campd" %}
+        {% if not campd_error %}
+            <p>
+                EPA reports {{ campd_total }} matching record(s).
+                Showing {{ campd_records|length }} result(s)
+                on page {{ campd_page }}.
+            </p>
+
+            {% if campd_records %}
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                {% for column in campd_columns %}
+                                    <th>{{ column }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for record in campd_records %}
+                                <tr>
+                                    {% for column in campd_columns %}
+                                        <td>{{ record.get(column, "") }}</td>
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="buttons">
+                    {% if campd_page > 1 %}
+                        <a class="button" href="{{ url_for(
+                            'main.results',
+                            search_type='campd',
+                            campd_search=1,
+                            campd_state=campd_state,
+                            campd_dataset=campd_dataset,
+                            campd_year=campd_year,
+                            campd_oris_code=campd_oris_code,
+                            campd_begin_date=campd_begin_date,
+                            campd_end_date=campd_end_date,
+                            campd_per_page=campd_per_page,
+                            campd_page=campd_page - 1
+                        ) }}">Previous Page</a>
+                    {% endif %}
+
+                    {% if campd_records|length == campd_per_page %}
+                        <a class="button" href="{{ url_for(
+                            'main.results',
+                            search_type='campd',
+                            campd_search=1,
+                            campd_state=campd_state,
+                            campd_dataset=campd_dataset,
+                            campd_year=campd_year,
+                            campd_oris_code=campd_oris_code,
+                            campd_begin_date=campd_begin_date,
+                            campd_end_date=campd_end_date,
+                            campd_per_page=campd_per_page,
+                            campd_page=campd_page + 1
+                        ) }}">Next Page</a>
+                    {% endif %}
+                </div>
+            {% else %}
+                <p>No CAMPD records were returned for this page.</p>
+            {% endif %}
+        {% endif %}
+    {% elif result_kind == "explorer" %}
+        <p>Records found: <strong>{{ pagination.total if pagination else records|length }}</strong></p>
+
+        {% if records %}
+            <div style="overflow-x: auto;">
+                <table border="1" cellpadding="5" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Year</th>
+                            <th>Date</th>
+                            <th>Hour</th>
+                            <th>State</th>
+                            <th>Facility</th>
+                            <th>Facility ID</th>
+                            <th>Gross Load</th>
+                            <th>CO2 Mass</th>
+                            <th>SO2 Mass</th>
+                            <th>NOx Mass</th>
+                            <th>Heat Input</th>
+                            <th>Steam Load</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in records %}
+                            <tr>
+                                <td>{{ record.get('year', '') }}</td>
+                                <td>{{ record.get('date', '') }}</td>
+                                <td>{{ record.get('hour', '') }}</td>
+                                <td>{{ record.get('state', '') }}</td>
+                                <td>{{ record.get('facility_name', '') }}</td>
+                                <td>{{ record.get('facility_id', '') }}</td>
+                                <td>{{ record.get('gross_load', '') }}</td>
+                                <td>{{ record.get('co2_mass', '') }}</td>
+                                <td>{{ record.get('so2_mass', '') }}</td>
+                                <td>{{ record.get('nox_mass', '') }}</td>
+                                <td>{{ record.get('heat_input', '') }}</td>
+                                <td>{{ record.get('steam_load', '') }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if previous_results_url or next_results_url %}
+                <div class="buttons">
+                    {% if previous_results_url %}
+                        <a class="button" href="{{ previous_results_url }}">Previous</a>
+                    {% endif %}
+                    {% if pagination %}
+                        <strong>Page {{ pagination.page }} of {{ pagination.pages }}</strong>
+                    {% endif %}
+                    {% if next_results_url %}
+                        <a class="button" href="{{ next_results_url }}">Next</a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% else %}
+            <p>No records match the selected filters.</p>
+        {% endif %}
+    {% endif %}
+
+    <p><a href="{{ back_url }}">← Back to search</a></p>
+</section>
 
 {% endblock %}

@@ -3,8 +3,8 @@
 
 from datetime import date
 
-from flask import Blueprint, render_template, request
-from sqlalchemy import MetaData, Table, select, func, extract
+from flask import Blueprint, render_template, request, url_for
+from sqlalchemy import Integer, MetaData, String, Table, cast, select, func
 
 from app import db
 
@@ -27,7 +27,7 @@ LOCAL_DATASETS = {
         "year_column": "Year",
     },
     "annual_state": {
-        "table": "annual_emissions_state",
+        "table": "calc_data_annual",
         "label": "Annual — State",
         "year_column": "Year",
     },
@@ -37,7 +37,7 @@ LOCAL_DATASETS = {
         "year_column": "Date",
     },
     "hourly_state": {
-        "table": "hourly_emissions_state",
+        "table": "calc_data_hourly",
         "label": "Hourly — State",
         "year_column": "Date",
     },
@@ -76,6 +76,12 @@ def parse_number(value):
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+@explorer_bp.route("/results", methods=["GET"])
+def results():
+    """Render the Data Explorer query on its dedicated results URL."""
+    return explorer()
 
 
 @explorer_bp.route("/", methods=["GET"])
@@ -252,7 +258,10 @@ def explorer():
             if year_column is not None:
                 return year_column
             if date_column is not None:
-                return extract("year", date_column)
+                return cast(
+                    func.substr(cast(date_column, String), 1, 4),
+                    Integer,
+                )
             return None
 
         year_expr = year_expression()
@@ -369,9 +378,9 @@ def explorer():
             years = [
                 row[0]
                 for row in db.session.execute(
-                    select(extract("year", date_column).label("yr"))
+                    select(year_expr.label("yr"))
                     .distinct()
-                    .order_by(extract("year", date_column).desc())
+                    .order_by(year_expr.desc())
                 ).all()
                 if row[0] is not None
             ]
@@ -382,8 +391,41 @@ def explorer():
         fuels = []
         controls = []
 
+    show_results = args.get("show_results") == "1"
+    previous_results_url = None
+    next_results_url = None
+    back_args = args.to_dict()
+    back_args.pop("show_results", None)
+    back_args.pop("page", None)
+
+    if show_results and pagination:
+        pagination_args = args.to_dict()
+        pagination_args["show_results"] = "1"
+
+        if pagination.has_prev:
+            previous_args = dict(pagination_args)
+            previous_args["page"] = pagination.prev_num
+            previous_results_url = url_for(
+                "explorer.results",
+                **previous_args,
+            )
+
+        if pagination.has_next:
+            next_args = dict(pagination_args)
+            next_args["page"] = pagination.next_num
+            next_results_url = url_for(
+                "explorer.results",
+                **next_args,
+            )
+
     return render_template(
-        "explorer.html",
+        "results.html" if show_results else "explorer.html",
+        result_kind="explorer",
+        result_title="Data Explorer Results",
+        result_source=dataset_config["label"],
+        back_url=url_for("explorer.explorer", **back_args),
+        previous_results_url=previous_results_url,
+        next_results_url=next_results_url,
         records=records,
         pagination=pagination,
         datasets=LOCAL_DATASETS,

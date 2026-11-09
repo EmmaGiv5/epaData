@@ -21,8 +21,9 @@ Live EPA Search | epaData
         through January 1, 2025.
     </p>
 
-    <form method="GET" action="{{ url_for('main.campd_search') }}">
+    <form method="GET" action="{{ url_for('main.results') }}">
         <input type="hidden" name="campd_search" value="1">
+        <input type="hidden" name="search_type" value="campd">
 
         <label for="campd_state">State:</label>
         <select id="campd_state" name="campd_state" required>
@@ -103,81 +104,5 @@ Live EPA Search | epaData
         <a href="{{ url_for('main.search') }}">← Back to Search Options</a>
     </p>
 </section>
-
-{% if campd_error %}
-<section class="hero">
-    <p class="error" role="alert">{{ campd_error }}</p>
-</section>
-
-{% elif campd_searched %}
-<section class="hero">
-    <h2>Live CAMPD Results</h2>
-
-    <p>
-        EPA reports {{ campd_total }} matching record(s).
-        Showing {{ campd_records|length }} result(s)
-        on page {{ campd_page }}.
-    </p>
-
-    {% if campd_records %}
-        <div style="overflow-x: auto;">
-            <table>
-                <thead>
-                    <tr>
-                        {% for column in campd_columns %}
-                            <th>{{ column }}</th>
-                        {% endfor %}
-                    </tr>
-                </thead>
-
-                <tbody>
-                    {% for record in campd_records %}
-                        <tr>
-                            {% for column in campd_columns %}
-                                <td>{{ record.get(column, "") }}</td>
-                            {% endfor %}
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <div class="buttons">
-            {% if campd_page > 1 %}
-                <a class="button" href="{{ url_for(
-                    'main.campd_search',
-                    campd_search=1,
-                    campd_state=campd_state,
-                    campd_dataset=campd_dataset,
-                    campd_year=campd_year,
-                    campd_oris_code=campd_oris_code,
-                    campd_begin_date=campd_begin_date,
-                    campd_end_date=campd_end_date,
-                    campd_per_page=campd_per_page,
-                    campd_page=campd_page - 1
-                ) }}">Previous Page</a>
-            {% endif %}
-
-            {% if campd_records|length == campd_per_page %}
-                <a class="button" href="{{ url_for(
-                    'main.campd_search',
-                    campd_search=1,
-                    campd_state=campd_state,
-                    campd_dataset=campd_dataset,
-                    campd_year=campd_year,
-                    campd_oris_code=campd_oris_code,
-                    campd_begin_date=campd_begin_date,
-                    campd_end_date=campd_end_date,
-                    campd_per_page=campd_per_page,
-                    campd_page=campd_page + 1
-                ) }}">Next Page</a>
-            {% endif %}
-        </div>
-
-    {% else %}
-        <p>No CAMPD records were returned for this page.</p>
-    {% endif %}
-</section>
-{% endif %}
 
 {% endblock %}
