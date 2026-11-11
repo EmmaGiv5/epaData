@@ -19,10 +19,21 @@ load_dotenv()
 #connection = psycopg2.connect(DATABASE_URL)
 
 
+import csv
 import uuid
 from datetime import datetime
-from sqlalchemy import MetaData, Table, or_, cast, String, select
-from sqlalchemy.exc import NoSuchTableError
+from pathlib import Path
+
+from sqlalchemy import (
+    MetaData,
+    Table,
+    cast,
+    func,
+    or_,
+    select,
+    String,
+)
+from sqlalchemy.exc import SQLAlchemyError
 
 from flask import (
     Blueprint,
@@ -84,10 +95,191 @@ from app.services.campd_service import (
 
 main_bp = Blueprint("main", __name__)
 
+TRACI_EMISSIONS_COLUMNS = {
+    "CARBON DIOXIDE": "CO2 Mass (short tons)",
+    "SULFUR DIOXIDE": "SO2 Mass (short tons)",
+    "NITROGEN OXIDES": "NOx Mass (short tons)",
+}
+SHORT_TON_TO_KILOGRAMS = 907.18474
+
+
+def _read_traci_factors():
+    factor_path = (
+        Path(__file__).resolve().parents[2]
+        / "CAMPD_Data_NEW"
+        / "traci_2_2.csv"
+    )
+    factors_by_category = {}
+
+    with factor_path.open(encoding="utf-8-sig", newline="") as factor_file:
+        reader = csv.DictReader(factor_file)
+        if not reader.fieldnames or "Substance Name" not in reader.fieldnames:
+            raise ValueError("The TRACI factor file has an invalid format.")
+
+        for row in reader:
+            substance = (row.get("Substance Name") or "").strip().upper()
+            if substance not in TRACI_EMISSIONS_COLUMNS:
+                continue
+
+            for category, raw_factor in row.items():
+                if category in (
+                    "CAS #",
+                    "Formatted CAS #",
+                    "Substance Name",
+                ):
+                    continue
+                if not raw_factor or raw_factor.strip().lower() in ("n/a", "x"):
+                    continue
+
+                try:
+                    factor_value = float(raw_factor.strip().replace(",", ""))
+                except ValueError:
+                    continue
+
+                factors_by_category.setdefault(category, {})[
+                    substance
+                ] = factor_value
+
+    if not factors_by_category:
+        raise ValueError("No matching TRACI factors were found.")
+
+    return factors_by_category
+
 
 @main_bp.route("/")
 def home():
     return render_template("index.html")
+
+
+@main_bp.route("/calculate", methods=["GET", "POST"])
+def calculate():
+    states = []
+    years = []
+    calc_state = ""
+    calc_year = ""
+    calc_results = []
+    calc_error = None
+    calc_submitted = request.method == "POST"
+
+    try:
+        annual_data = Table(
+            "calc_data_annual",
+            MetaData(),
+            autoload_with=db.engine,
+        )
+        required_columns = (
+            "State",
+            "Year",
+            *TRACI_EMISSIONS_COLUMNS.values(),
+        )
+        missing_columns = [
+            column for column in required_columns if column not in annual_data.c
+        ]
+        if missing_columns:
+            raise ValueError(
+                "The calc_data_annual table is missing required columns: "
+                + ", ".join(missing_columns)
+            )
+
+        states = [
+            row[0]
+            for row in db.session.execute(
+                select(annual_data.c["State"])
+                .where(annual_data.c["State"].is_not(None))
+                .distinct()
+                .order_by(annual_data.c["State"])
+            ).all()
+        ]
+        years = [
+            int(row[0])
+            for row in db.session.execute(
+                select(annual_data.c["Year"])
+                .where(annual_data.c["Year"].is_not(None))
+                .distinct()
+                .order_by(annual_data.c["Year"].desc())
+            ).all()
+        ]
+
+        if request.method == "POST":
+            calc_state = request.form.get("state", "").strip()
+            calc_year = request.form.get("year", "").strip()
+
+            if calc_state and calc_state not in states:
+                raise ValueError("Choose a state available in the annual data.")
+            if calc_year and (
+                not calc_year.isdigit() or int(calc_year) not in years
+            ):
+                raise ValueError("Choose a year available in the annual data.")
+
+            factors_by_category = _read_traci_factors()
+            query = select(
+                annual_data.c["State"].label("state"),
+                annual_data.c["Year"].label("year"),
+                *[
+                    func.sum(annual_data.c[column]).label(substance)
+                    for substance, column in TRACI_EMISSIONS_COLUMNS.items()
+                ],
+            ).group_by(annual_data.c["State"], annual_data.c["Year"])
+
+            if calc_state:
+                query = query.where(annual_data.c["State"] == calc_state)
+            if calc_year:
+                query = query.where(annual_data.c["Year"] == int(calc_year))
+
+            emissions_groups = db.session.execute(query).mappings().all()
+            for group in emissions_groups:
+                for category, category_factors in factors_by_category.items():
+                    impact_value = 0.0
+                    contributing_substances = []
+
+                    for substance, factor in category_factors.items():
+                        mass_short_tons = group[substance]
+                        if mass_short_tons is None:
+                            continue
+
+                        mass_kg = float(mass_short_tons) * SHORT_TON_TO_KILOGRAMS
+                        impact_value += mass_kg * factor
+                        contributing_substances.append(substance)
+
+                    if not contributing_substances:
+                        continue
+
+                    unit_start = category.find("(")
+                    unit_end = category.rfind(")")
+                    impact_unit = (
+                        category[unit_start + 1:unit_end]
+                        if unit_start >= 0 and unit_end > unit_start
+                        else ""
+                    )
+                    calc_results.append({
+                        "state": group["state"],
+                        "year": group["year"],
+                        "category": category.split(" (", 1)[0],
+                        "value": impact_value,
+                        "unit": impact_unit,
+                        "substances": ", ".join(contributing_substances),
+                    })
+
+    except SQLAlchemyError:
+        current_app.logger.exception("Unable to connect to calculation data")
+        calc_error = (
+            "Could not load calculation data. Verify the database connection "
+            "and that calc_data_annual is available."
+        )
+    except (OSError, ValueError) as exc:
+        current_app.logger.exception("Unable to calculate TRACI impacts")
+        calc_error = str(exc)
+
+    return render_template(
+        "calc.html",
+        states=states,
+        years=years,
+        calc_state=calc_state,
+        calc_year=calc_year,
+        calc_results=calc_results,
+        calc_error=calc_error,
+        calc_submitted=calc_submitted,
+    )
 
 
 @main_bp.route("/login", methods=["GET", "POST"])
