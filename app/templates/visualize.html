@@ -4,11 +4,292 @@
 Visualizations | epaData
 {% endblock %}
 
-{% block header %}Visualize{% endblock %}
+{% block header %}Visualizations{% endblock %}
 
 {% block content %}
 
 <section class="hero">
-    <!-- Visualizations -->
+
+    <h1>Environmental Impact Visualizations</h1>
+
+    <p>
+        Generate interactive graphs using your calculated
+        TRACI 2.2 environmental impact results.
+    </p>
+
+    {% if visualization_error %}
+
+        <p class="error" role="alert">
+            {{ visualization_error }}
+        </p>
+
+    {% elif visualization_results %}
+
+        <div class="visualization-controls">
+
+            <label for="chartType">Graph Type:</label>
+
+            <select id="chartType">
+                <option value="bar">Bar Chart</option>
+                <option value="line">Line Graph</option>
+                <option value="pie">Pie Chart</option>
+            </select>
+
+            <label for="impactCategory">
+                Impact Category:
+            </label>
+
+            <select id="impactCategory"></select>
+
+            <button type="button" id="generateChart">
+                Generate Graph
+            </button>
+
+        </div>
+
+        <div class="chart-container"
+             style="position: relative; width: 100%; max-width: 1000px; height: 450px; margin: 30px auto;">
+
+            <canvas id="impactChart"></canvas>
+
+        </div>
+
+        <h2>Calculated Impact Data</h2>
+
+        <div style="overflow-x: auto;">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>State</th>
+                        <th>Year</th>
+                        <th>Impact Category</th>
+                        <th>Impact Value</th>
+                        <th>Unit</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    {% for result in visualization_results %}
+
+                    <tr>
+                        <td>{{ result.state }}</td>
+                        <td>{{ result.year }}</td>
+                        <td>{{ result.category }}</td>
+                        <td>{{ "%.6g"|format(result.value) }}</td>
+                        <td>{{ result.unit }}</td>
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    {% else %}
+
+        <p>
+            No calculated impact data is available.
+            Return to the Calculations page and try another selection.
+        </p>
+
+        <a class="button" href="{{ url_for('main.calculate') }}">
+            Return to Calculations
+        </a>
+
+    {% endif %}
+
 </section>
+
+{% if visualization_results %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+
+    // Data supplied by Flask
+    const impactData = {{ visualization_results | tojson }};
+
+    const categorySelect = document.getElementById(
+        "impactCategory"
+    );
+
+    const chartTypeSelect = document.getElementById(
+        "chartType"
+    );
+
+    const generateButton = document.getElementById(
+        "generateChart"
+    );
+
+    const chartCanvas = document.getElementById(
+        "impactChart"
+    );
+
+    let impactChart = null;
+
+
+    // Populate the category dropdown
+    const categories = [
+        ...new Set(
+            impactData.map(item => item.category)
+        )
+    ].sort();
+
+    categories.forEach(category => {
+
+        const option = document.createElement("option");
+
+        option.value = category;
+        option.textContent = category;
+
+        categorySelect.appendChild(option);
+
+    });
+
+
+    // Generate the selected graph
+    function generateChart() {
+
+        const selectedCategory = categorySelect.value;
+
+        const selectedType = chartTypeSelect.value;
+
+        // Keep only the selected TRACI category
+        const filteredData = impactData
+            .filter(item => item.category === selectedCategory)
+            .sort((a, b) => a.year - b.year);
+
+        if (!filteredData.length) {
+            return;
+        }
+
+        const labels = filteredData.map(
+            item => item.year
+        );
+
+        const values = filteredData.map(
+            item => item.value
+        );
+
+        const unit = filteredData[0].unit;
+
+        // Remove the previous graph before generating another
+        if (impactChart) {
+            impactChart.destroy();
+        }
+
+        // Create the new Chart.js graph
+        impactChart = new Chart(chartCanvas, {
+
+            type: selectedType,
+
+            data: {
+
+                labels: labels,
+
+                datasets: [{
+
+                    label: selectedCategory + " (" + unit + ")",
+
+                    data: values,
+
+                    backgroundColor: [
+                        "rgba(54, 162, 235, 0.7)",
+                        "rgba(255, 99, 132, 0.7)",
+                        "rgba(255, 206, 86, 0.7)",
+                        "rgba(75, 192, 192, 0.7)",
+                        "rgba(153, 102, 255, 0.7)",
+                        "rgba(255, 159, 64, 0.7)"
+                    ],
+
+                    borderColor: "rgba(54, 162, 235, 1)",
+
+                    borderWidth: 2,
+
+                    tension: 0.3
+
+                }]
+
+            },
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                plugins: {
+
+                    title: {
+
+                        display: true,
+
+                        text: selectedCategory +
+                            " Environmental Impact"
+
+                    },
+
+                    legend: {
+
+                        display: selectedType === "pie"
+
+                    }
+
+                },
+
+                scales: selectedType === "pie" ? {} : {
+
+                    y: {
+
+                        beginAtZero: true,
+
+                        title: {
+
+                            display: true,
+
+                            text: unit
+
+                        }
+
+                    },
+
+                    x: {
+
+                        title: {
+
+                            display: true,
+
+                            text: "Reporting Year"
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        });
+
+    }
+
+
+    // Generate graph when the button is clicked
+    generateButton.addEventListener(
+        "click",
+        generateChart
+    );
+
+    // Display an initial graph
+    generateChart();
+
+</script>
+
+{% endif %}
+
 {% endblock %}

@@ -44,9 +44,18 @@ Calculations | epaData
 
     <!-- VISUALIZE BUTTON TEMPLATE -->
 
-    <a class="button" href="{{ url_for('main.visualize') }}">
+{% if calc_submitted and calc_results and not calc_error %}
+
+    <a class="button"
+       href="{{ url_for(
+           'main.visualize',
+           state=calc_state,
+           year=calc_year
+       ) }}">
         Visualize Calculated Impacts
     </a>
+
+{% endif %}
 
     <!-- VISUALIZE BUTTON TEMPLATE -->
 

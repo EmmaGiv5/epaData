@@ -151,9 +151,118 @@ def home():
     return render_template("index.html")
 
 
+# @main_bp.route("/visualize")
+# def visualize():
+#    return render_template("visualize.html")
+
+#allows traci calculations from supabase
 @main_bp.route("/visualize")
 def visualize():
-    return render_template("visualize.html")
+
+    state = request.args.get("state", "").strip()
+    year = request.args.get("year", "").strip()
+
+    visualization_results = []
+    visualization_error = None
+
+    try:
+        annual_data = Table(
+            "calc_data_annual",
+            MetaData(),
+            autoload_with=db.engine,
+        )
+
+        factors_by_category = _read_traci_factors()
+
+        query = select(
+            annual_data.c["State"].label("state"),
+            annual_data.c["Year"].label("year"),
+            *[
+                func.sum(annual_data.c[column]).label(substance)
+                for substance, column in TRACI_EMISSIONS_COLUMNS.items()
+            ],
+        ).group_by(
+            annual_data.c["State"],
+            annual_data.c["Year"],
+        )
+
+        if state:
+            query = query.where(
+                annual_data.c["State"] == state
+            )
+
+        if year:
+            if not year.isdigit():
+                raise ValueError("Invalid reporting year.")
+
+            query = query.where(
+                annual_data.c["Year"] == int(year)
+            )
+
+        emissions_groups = db.session.execute(
+            query
+        ).mappings().all()
+
+        for group in emissions_groups:
+
+            for category, category_factors in factors_by_category.items():
+
+                impact_value = 0.0
+                contributing_substances = []
+
+                for substance, factor in category_factors.items():
+
+                    mass = group[substance]
+
+                    if mass is None:
+                        continue
+
+                    mass_kg = (
+                        float(mass) * SHORT_TON_TO_KILOGRAMS
+                    )
+
+                    impact_value += mass_kg * factor
+
+                    contributing_substances.append(substance)
+
+                if not contributing_substances:
+                    continue
+
+                unit_start = category.find("(")
+                unit_end = category.rfind(")")
+
+                impact_unit = (
+                    category[unit_start + 1:unit_end]
+                    if unit_start >= 0 and unit_end > unit_start
+                    else ""
+                )
+
+                visualization_results.append({
+                    "state": group["state"],
+                    "year": int(group["year"]),
+                    "category": category.split(" (", 1)[0],
+                    "value": impact_value,
+                    "unit": impact_unit,
+                    "substances": ", ".join(
+                        contributing_substances
+                    ),
+                })
+
+    except (SQLAlchemyError, OSError, ValueError) as exc:
+
+        current_app.logger.exception(
+            "Unable to generate visualization data"
+        )
+
+        visualization_error = str(exc)
+
+    return render_template(
+        "visualize.html",
+        visualization_results=visualization_results,
+        visualization_error=visualization_error,
+        selected_state=state,
+        selected_year=year,
+    )
 
 
 @main_bp.route("/calculate", methods=["GET", "POST"])
