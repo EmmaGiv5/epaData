@@ -396,6 +396,20 @@ def calculate():
     )
 
 
+@main_bp.route("/factored-calculations")
+def factored_calculations():
+    return render_template("factored_calculations.html")
+
+
+@main_bp.route("/descriptive-stats")
+def descriptive_stats():
+    return render_template("descriptive_stats.html")
+
+@main_bp.route("/comparisons")
+def comparisons():
+    return render_template("comparisons.html")
+
+
 @main_bp.route("/login", methods=["GET", "POST"])
 def login():
 

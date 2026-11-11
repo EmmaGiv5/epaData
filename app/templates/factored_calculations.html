@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}
+Factored Calculations | epaData
+{% endblock %}
+
+{% block header %}Factored Calculations{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+
+    <h1>Calculations</h1>
+
+    <p>
+        Calculate available TRACI 2.2 impacts from annual emissions data.
+    </p>
+
+    <form method="POST" action="{{ url_for('main.calculate') }}">
+        <label for="state">State:</label>
+        <select id="state" name="state">
+            <option value="">All states</option>
+            {% for state in states %}
+                <option value="{{ state }}"
+                    {% if calc_state == state %}selected{% endif %}>
+                    {{ state }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="year">Year:</label>
+        <select id="year" name="year">
+            <option value="">All years</option>
+            {% for year in years %}
+                <option value="{{ year }}"
+                    {% if calc_year == year|string %}selected{% endif %}>
+                    {{ year }}
+                </option>
+            {% endfor %}
+        </select>
+        <button type="submit">Calculate</button>
+    </form>
+
+
+
+    <!-- VISUALIZE BUTTON TEMPLATE -->
+
+{% if calc_submitted and calc_results and not calc_error %}
+
+    <a class="button"
+       href="{{ url_for(
+           'main.visualize',
+           state=calc_state,
+           year=calc_year
+       ) }}">
+        Visualize Calculated Impacts
+    </a>
+
+{% endif %}
+
+    <!-- VISUALIZE BUTTON TEMPLATE -->
+
+
+
+    {% if calc_submitted and calc_results %}
+        <h2>TRACI Impact Results</h2>
+        <p>
+            Annual short-ton emissions were converted to kilograms before
+            applying the TRACI characterization factors.
+        </p>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>State</th>
+                        <th>Year</th>
+                        <th>Impact Category</th>
+                        <th>Calculated Impact</th>
+                        <th>Unit</th>
+                        <th>Included Substances</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for result in calc_results %}
+                        <tr>
+                            <td>{{ result.state }}</td>
+                            <td>{{ result.year }}</td>
+                            <td>{{ result.category }}</td>
+                            <td>{{ "%.6g"|format(result.value) }}</td>
+                            <td>{{ result.unit }}</td>
+                            <td>{{ result.substances }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% elif calc_submitted and not calc_error %}
+        <p>No emissions data was found for those filters.</p>
+    {% endif %}
+
+    {% if calc_error %}
+        <p class="error" role="alert">{{ calc_error }}</p>
+    {% endif %}
+
+</section>
+
+{% endblock %}
