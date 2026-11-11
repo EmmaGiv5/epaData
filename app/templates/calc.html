@@ -40,6 +40,18 @@ Calculations | epaData
         <button type="submit">Calculate</button>
     </form>
 
+
+
+    <!-- VISUALIZE BUTTON TEMPLATE -->
+
+    <a class="button" href="{{ url_for('main.visualize') }}">
+        Visualize Calculated Impacts
+    </a>
+
+    <!-- VISUALIZE BUTTON TEMPLATE -->
+
+    
+
     {% if calc_submitted and calc_results %}
         <h2>TRACI Impact Results</h2>
         <p>

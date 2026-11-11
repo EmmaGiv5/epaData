@@ -151,6 +151,11 @@ def home():
     return render_template("index.html")
 
 
+@main_bp.route("/visualize")
+def visualize():
+    return render_template("visualize.html")
+
+
 @main_bp.route("/calculate", methods=["GET", "POST"])
 def calculate():
     states = []
