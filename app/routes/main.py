@@ -153,8 +153,36 @@ def home():
 
 @main_bp.route("/visualize")
 def visualize():
-    return render_template("visualize.html")
+    states = (
+        db.session.query(Facility.state)
+        .distinct()
+        .filter(Facility.state.isnot(None))
+        .order_by(Facility.state)
+        .all()
+    )
 
+    facilities = (
+        db.session.query(
+            Facility.id,
+            Facility.facility_name
+        )
+        .order_by(Facility.facility_name)
+        .all()
+    )
+
+    years = (
+        db.session.query(AnnualRecord.reporting_year)
+        .distinct()
+        .order_by(AnnualRecord.reporting_year)
+        .all()
+    )
+
+    return render_template(
+        "visualize.html",
+        states=[s[0] for s in states],
+        facilities=facilities,
+        years=[y[0] for y in years]
+    )
 
 @main_bp.route("/calculate", methods=["GET", "POST"])
 def calculate():
