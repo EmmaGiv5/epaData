@@ -3,42 +3,37 @@ import pandas as pd
 
 from pathlib import Path
 
-MODEL_DIR = (
-    Path(__file__).resolve().parents[1]
-    / "saved_models"
-)
+
+MODEL_DIR = Path(__file__).resolve().parents[1] / "saved_models"
 
 
-def load_model(model_name):
+def predict_co2(inputs):
 
-    model_path = MODEL_DIR / f"{model_name}.joblib"
+    results = {}
 
-    if not model_path.exists():
-        raise FileNotFoundError(
-            f"{model_name} has not been trained yet."
+    models = {
+        "Prediction Model 1": MODEL_DIR / "model_one.joblib",
+        "Sensitivity Analysis Model 2": MODEL_DIR / "model_two.joblib",
+    }
+
+    for name, path in models.items():
+
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Model not found: {path}"
+            )
+
+        saved = joblib.load(path)
+
+        model = saved["model"]
+        features = saved["features"]
+
+        dataframe = pd.DataFrame(
+            [{key: inputs[key] for key in features}]
         )
 
-    saved = joblib.load(model_path)
+        prediction = model.predict(dataframe)[0]
 
-    return saved
+        results[name] = round(float(prediction), 2)
 
-
-def generate_prediction(model_name, inputs):
-
-    saved = load_model(model_name)
-
-    model = saved["model"]
-    features = saved["features"]
-
-    dataframe = pd.DataFrame(
-        [{feature: inputs.get(feature) for feature in features}]
-    )
-
-    prediction = model.predict(dataframe)[0]
-
-    return {
-        "prediction": float(prediction),
-        "model": model_name,
-        "mae": float(saved["mae"]),
-        "r2": float(saved["r2"]),
-    }
+    return results

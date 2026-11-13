@@ -1,140 +1,43 @@
-import numpy as np
-
-from .prediction_service import load_model
+from machine_learning.prediction_service import predict_co2
 
 
-def calculate_sensitivity(
-    inputs,
-    variable,
-    minimum,
-    maximum,
-    steps=20
-):
+def calculate_sensitivity(inputs):
 
-    saved = load_model("model_two")
-
-    model = saved["model"]
-
-    features = saved["features"]
-
-    if variable not in (
+    variables = [
         "gross_load",
         "heat_input",
         "operating_time",
-    ):
-        raise ValueError("Invalid sensitivity variable.")
+    ]
 
-    if minimum >= maximum:
-        raise ValueError("Minimum must be below maximum.")
+    results = {}
 
-    if steps < 2 or steps > 100:
-        raise ValueError("Steps must be between 2 and 100.")
+    for variable in variables:
 
-    baseline_prediction = model.predict(
-        [{feature: inputs[feature] for feature in features}]
-    )[0]
+        original_value = float(inputs[variable])
 
-    values = np.linspace(minimum, maximum, steps)
+        if original_value <= 0:
+            change = max(abs(original_value) * 0.10, 1)
+        else:
+            change = original_value * 0.10
 
-    results = []
+        increased = inputs.copy()
+        decreased = inputs.copy()
 
-    for value in values:
+        increased[variable] = original_value + change
+        decreased[variable] = max(0, original_value - change)
 
-        modified_inputs = inputs.copy()
+        original_prediction = predict_co2(inputs)
+        higher_prediction = predict_co2(increased)
+        lower_prediction = predict_co2(decreased)
 
-        modified_inputs[variable] = float(value)
+        results[variable] = {}
 
-        prediction = model.predict([
-            {
-                feature: modified_inputs[feature]
-                for feature in features
+        for model in original_prediction:
+
+            results[variable][model] = {
+                "original": original_prediction[model],
+                "increased": higher_prediction[model],
+                "decreased": lower_prediction[model],
             }
-        ])[0]
-
-        absolute_change = (
-            float(prediction) - float(baseline_prediction)
-        )
-
-        percentage_change = (
-            absolute_change / baseline_prediction * 100
-            if baseline_prediction != 0
-            else None
-        )
-
-        results.append({
-            "input_value": float(value),
-            "prediction": float(prediction),
-            "absolute_change": float(absolute_change),
-            "percentage_change": (
-                float(percentage_change)
-                if percentage_change is not None
-                else None
-            ),
-        })
-
-    return {
-        "variable": variable,
-        "baseline_prediction": float(baseline_prediction),
-        "results": results,
-    }
-def compare_scenarios(inputs, scenarios):
-
-    saved = load_model("model_two")
-    model = saved["model"]
-    features = saved["features"]
-
-    baseline_inputs = {
-        feature: inputs[feature]
-        for feature in features
-    }
-
-    baseline_prediction = float(
-        model.predict([baseline_inputs])[0]
-    )
-
-    results = [{
-        "scenario": "Baseline",
-        "prediction": baseline_prediction,
-        "absolute_change": 0,
-        "percentage_change": 0,
-    }]
-
-    for scenario_name, changes in scenarios.items():
-
-        modified = baseline_inputs.copy()
-
-        for variable, value in changes.items():
-
-            if variable not in (
-                "gross_load",
-                "heat_input",
-                "operating_time",
-                "primary_fuel",
-                "unit_type",
-            ):
-                raise ValueError(
-                    f"Unsupported scenario variable: {variable}"
-                )
-
-            modified[variable] = value
-
-        prediction = float(
-            model.predict([modified])[0]
-        )
-
-        difference = prediction - baseline_prediction
-
-        percentage = (
-            difference / baseline_prediction * 100
-            if baseline_prediction != 0
-            else None
-        )
-
-        results.append({
-            "scenario": scenario_name,
-            "prediction": prediction,
-            "absolute_change": difference,
-            "percentage_change": percentage,
-        })
 
     return results
