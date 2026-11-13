@@ -9,7 +9,192 @@ Comparisons | epaData
 {% block content %}
 
 <section class="hero">
+    <h1>Comparative Analysis</h1>
+    <p>
+        Compare all groups in one dataset using the same measurement and
+        reporting period. Select a reference group to calculate differences.
+    </p>
 
+    <a class="button" href="{{ url_for('main.visualize') }}"> 
+        Visualize 
+    </a> 
+
+    <form method="GET" action="{{ url_for('main.comparisons') }}">
+        <!-- No Dataset choice, all of them are included and used based on input 
+            Ex: hours are input then use hourly, if unit is selected, use unit, etc. -->
+        <label for="dataset">Dataset:</label>
+        <select id="dataset" name="dataset">
+            {% for dataset in datasets %}
+                <option value="{{ dataset.key }}"
+                    {% if selected_dataset == dataset.key %}selected{% endif %}>
+                    {{ dataset.label }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <!-- keep same, be able to select multiple, also should be able to select unit info -->
+        <label for="metric">Measurement:</label>
+        <select id="metric" name="metric" required>
+            {% for metric in available_metrics %}
+                <option value="{{ metric.key }}"
+                    {% if selected_metric == metric.key %}selected{% endif %}>
+                    {{ metric.label }}
+                </option>
+            {% endfor %}
+        </select>
+        <!-- -->
+        <label for="group_by">Compare groups by:</label>
+        <select id="group_by" name="group_by">
+            <option value="">All records together</option>
+            {% for group in available_groups %}
+                <option value="{{ group.key }}"
+                    {% if selected_group_by == group.key %}selected{% endif %}>
+                    {{ group.label }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="aggregation">Compare using:</label>
+        <select id="aggregation" name="aggregation">
+            <option value="mean"
+                {% if selected_aggregation == "mean" %}selected{% endif %}>
+                Mean
+            </option>
+            <option value="sum"
+                {% if selected_aggregation == "sum" %}selected{% endif %}>
+                Total
+            </option>
+        </select>
+
+        <label for="year_from">Reporting year from (optional):</label>
+        <input
+            id="year_from"
+            name="year_from"
+            type="number"
+            value="{{ selected_year_from }}"
+        >
+        <label for="year_to">Reporting year to (optional):</label>
+        <input
+            id="year_to"
+            name="year_to"
+            type="number"
+            value="{{ selected_year_to }}"
+        >
+
+        {% if summaries %}
+            <label for="baseline">Reference group for differences:</label>
+            <select id="baseline" name="baseline">
+                {% for summary in summaries %}
+                    <option value="{{ summary.group }}"
+                        {% if selected_baseline == summary.group %}selected{% endif %}>
+                        {{ summary.group }}
+                    </option>
+                {% endfor %}
+            </select>
+        {% endif %}
+
+        <button type="submit">Compare</button>
+    </form>
+
+    {% if comparison_error %}
+        <p class="error" role="alert">{{ comparison_error }}</p>
+    {% elif summaries %}
+        <h2>Comparison Results</h2>
+        <p>
+            {{ selected_aggregation|capitalize }} {{ metric_label }}
+            {% if selected_baseline %}
+                is compared with <strong>{{ selected_baseline }}</strong>.
+            {% endif %}
+        </p>
+
+        <div style="position: relative; width: 100%; max-width: 1000px; height: 420px; margin: 30px auto;">
+            <canvas id="comparisonChart"></canvas>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Group</th>
+                        <th>Records</th>
+                        <th>Missing</th>
+                        <th>Mean</th>
+                        <th>Median</th>
+                        <th>Standard deviation</th>
+                        <th>Minimum</th>
+                        <th>Maximum</th>
+                        <th>{{ selected_aggregation|capitalize }} ({{ units }})</th>
+                        <th>Difference from reference</th>
+                        <th>Percent difference</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for summary in summaries %}
+                        <tr>
+                            <td>{{ summary.rank if summary.rank is not none else "—" }}</td>
+                            <td>{{ summary.group }}</td>
+                            <td>{{ summary.count }}</td>
+                            <td>{{ summary.missing_count }}</td>
+                            <td>{{ summary.mean if summary.mean is not none else "—" }}</td>
+                            <td>{{ summary.median if summary.median is not none else "—" }}</td>
+                            <td>{{ summary.standard_deviation if summary.standard_deviation is not none else "—" }}</td>
+                            <td>{{ summary.minimum if summary.minimum is not none else "—" }}</td>
+                            <td>{{ summary.maximum if summary.maximum is not none else "—" }}</td>
+                            <td>{{ summary.comparison_value if summary.comparison_value is not none else "—" }}</td>
+                            <td>{{ summary.difference if summary.difference is not none else "—" }}</td>
+                            <td>
+                                {% if summary.percentage_difference is not none %}
+                                    {{ "%.4g"|format(summary.percentage_difference) }}%
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <h3>How to interpret this comparison</h3>
+        <ul>
+            <li>Each run uses one dataset and one measurement; values from different units are not mixed.</li>
+            <li>Missing or nonnumeric measurements are excluded from summaries and counted as missing.</li>
+            <li>Standard deviation is the sample standard deviation; it is undefined for a group with fewer than two values.</li>
+            <li>Percentage difference is relative to the selected reference group; it is undefined when that group's comparison value is zero.</li>
+            <li>Intensity and heat-rate values are missing when gross load is missing or zero.</li>
+            <li>Control status is classified from the available annual unit control field; unspecified entries remain a separate group.</li>
+            <li>These are descriptive comparisons, not statistical significance tests or causal conclusions.</li>
+        </ul>
+    {% else %}
+        <p>No records were found for the selected dataset and period.</p>
+    {% endif %}
 </section>
+
+{% if summaries %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const comparisonRows = {{ summaries | tojson }};
+        new Chart(document.getElementById("comparisonChart"), {
+            type: "bar",
+            data: {
+                labels: comparisonRows.map(row => row.group),
+                datasets: [{
+                    label: {{ (selected_aggregation|capitalize ~ " (" ~ units ~ ")") | tojson }},
+                    data: comparisonRows.map(row => row.comparison_value),
+                    backgroundColor: "rgba(54, 162, 235, 0.7)",
+                    borderColor: "rgba(54, 162, 235, 1)",
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true } },
+                plugins: { legend: { display: true } }
+            }
+        });
+    </script>
+{% endif %}
 
 {% endblock %}

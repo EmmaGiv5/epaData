@@ -24,7 +24,11 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
+
 from sqlalchemy import (
+    Integer,
     MetaData,
     Table,
     cast,
@@ -48,6 +52,13 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 from app.services.metadata_service import create_dataset_metadata
+from app.services.comparison_service import (
+    DATASETS as COMPARISON_DATASETS,
+    METRICS as COMPARISON_METRICS,
+    build_comparison,
+    comparison_metrics,
+    comparison_options,
+)
 
 from app import db
 from app.models import (
@@ -403,11 +414,316 @@ def factored_calculations():
 
 @main_bp.route("/descriptive-stats")
 def descriptive_stats():
-    return render_template("descriptive_stats.html")
+    dataset_key = request.args.get("dataset", "annual_state").strip()
+    variable = request.args.get("variable", "gross_load").strip()
+    group_by = request.args.get("group_by", "").strip()
+    selected_percentiles = request.args.get("percentiles", "").strip()
+
+    datasets = {
+        "annual_state": "calc_data_annual",
+        "annual_facility": "annual_emissions_facility",
+        "hourly_state": "calc_data_hourly",
+        "hourly_facility": "hourly_emissions_facility",
+    }
+    variable_columns = {
+        "gross_load": ("Gross Load (MWh)", "Gross Load (MW)"),
+        "steam_load": ("Steam Load (1000 lb)", "Steam Load (1000 lb/hr)"),
+        "co2_mass": ("CO2 Mass (short tons)",),
+        "so2_mass": ("SO2 Mass (short tons)", "SO2 Mass (lbs)"),
+        "nox_mass": ("NOx Mass (short tons)", "NOx Mass (lbs)"),
+        "heat_input": ("Heat Input (mmBtu)",),
+    }
+    group_columns = {
+        "state": ("State",),
+        "year": ("Year",),
+        "facility_name": ("Facility Name",),
+    }
+    selected_dataset = dataset_key or "annual_state"
+    selected_variable = variable or "gross_load"
+    stats = []
+    stats_error = None
+
+    try:
+        if selected_dataset not in datasets:
+            raise ValueError("Choose a supported dataset.")
+        if selected_variable not in variable_columns:
+            raise ValueError("Choose a supported numeric variable.")
+
+        percentile_values = []
+        if selected_percentiles:
+            for value in selected_percentiles.split(","):
+                percentile = float(value.strip())
+                if not 0 <= percentile <= 100:
+                    raise ValueError(
+                        "Percentiles must be between 0 and 100."
+                    )
+                if percentile not in percentile_values:
+                    percentile_values.append(percentile)
+
+        dataset_table = Table(
+            datasets[selected_dataset],
+            MetaData(),
+            autoload_with=db.engine,
+        )
+        value_column = next(
+            (
+                dataset_table.c[name]
+                for name in variable_columns[selected_variable]
+                if name in dataset_table.c
+            ),
+            None,
+        )
+        if value_column is None:
+            raise ValueError(
+                f"The selected dataset does not contain a "
+                f"{selected_variable.replace('_', ' ')} column."
+            )
+
+        query_columns = [value_column.label("value")]
+        group_column = None
+        year_from_date = (
+            selected_dataset.startswith("hourly_")
+            and group_by == "year"
+            and "Date" in dataset_table.c
+        )
+        if group_by:
+            if group_by not in group_columns:
+                raise ValueError("Choose a supported grouping field.")
+            if year_from_date:
+                group_column = cast(
+                    func.substr(cast(dataset_table.c["Date"], String), 1, 4),
+                    Integer,
+                )
+            else:
+                group_column = next(
+                    (
+                        dataset_table.c[name]
+                        for name in group_columns[group_by]
+                        if name in dataset_table.c
+                    ),
+                    None,
+                )
+            if group_column is None:
+                raise ValueError(
+                    "The selected dataset does not contain the chosen "
+                    "grouping field."
+                )
+            query_columns.append(group_column.label("group_value"))
+
+        records = db.session.execute(
+            select(*query_columns).select_from(dataset_table)
+        ).mappings().all()
+        buckets = {}
+        if group_column is None:
+            buckets["All records"] = [row["value"] for row in records]
+        else:
+            for row in records:
+                group_value = row["group_value"]
+                if group_value is None:
+                    group_label = "(Missing group)"
+                elif group_by == "year":
+                    group_label = str(int(group_value))
+                else:
+                    group_label = str(group_value)
+                buckets.setdefault(group_label, []).append(row["value"])
+
+        if not buckets and group_column is None:
+            buckets["All records"] = []
+
+        for group_label, raw_values in sorted(
+            buckets.items(),
+            key=lambda item: item[0],
+        ):
+            numeric_values = pd.to_numeric(
+                pd.Series(raw_values, dtype="object"),
+                errors="coerce",
+            ).dropna()
+            values = numeric_values.to_numpy(dtype=float)
+            values = values[np.isfinite(values)]
+            count = len(values)
+            missing_count = len(raw_values) - count
+
+            if count:
+                q1, median, q3 = np.percentile(values, [25, 50, 75])
+                standard_deviation = (
+                    float(np.std(values, ddof=1)) if count > 1 else None
+                )
+                percentile_results = {
+                    f"{percentile:g}": float(
+                        np.percentile(values, percentile)
+                    )
+                    for percentile in percentile_values
+                }
+                stats.append({
+                    "group": group_label,
+                    "count": count,
+                    "missing_count": missing_count,
+                    "minimum": float(np.min(values)),
+                    "maximum": float(np.max(values)),
+                    "mean": float(np.mean(values)),
+                    "median": float(median),
+                    "standard_deviation": standard_deviation,
+                    "q1": float(q1),
+                    "q3": float(q3),
+                    "iqr": float(q3 - q1),
+                    "percentiles": percentile_results,
+                })
+            else:
+                stats.append({
+                    "group": group_label,
+                    "count": 0,
+                    "missing_count": missing_count,
+                    "minimum": None,
+                    "maximum": None,
+                    "mean": None,
+                    "median": None,
+                    "standard_deviation": None,
+                    "q1": None,
+                    "q3": None,
+                    "iqr": None,
+                    "percentiles": {
+                        f"{percentile:g}": None
+                        for percentile in percentile_values
+                    },
+                })
+
+    except (ValueError, TypeError) as exc:
+        stats_error = str(exc)
+    except SQLAlchemyError:
+        current_app.logger.exception(
+            "Unable to calculate descriptive statistics"
+        )
+        stats_error = (
+            "Could not load statistics data. Verify the database connection "
+            "and that the selected dataset is available."
+        )
+
+    return render_template(
+        "descriptive_stats.html",
+        selected_dataset=selected_dataset,
+        selected_variable=selected_variable,
+        selected_group_by=group_by,
+        selected_percentiles=selected_percentiles,
+        stats=stats,
+        stats_error=stats_error,
+    )
 
 @main_bp.route("/comparisons")
 def comparisons():
-    return render_template("comparisons.html")
+    requested_dataset_key = request.args.get("dataset", "annual_state").strip()
+    dataset_key = (
+        requested_dataset_key
+        if requested_dataset_key in COMPARISON_DATASETS
+        else "annual_state"
+    )
+
+    metric_key = request.args.get("metric", "co2_mass").strip()
+    group_by_provided = "group_by" in request.args
+    group_key = request.args.get("group_by", "state").strip()
+    aggregation = request.args.get("aggregation", "mean").strip()
+    baseline = request.args.get("baseline", "").strip()
+    year_from_text = request.args.get("year_from", "").strip()
+    year_to_text = request.args.get("year_to", "").strip()
+
+    datasets = [
+        {"key": key, "label": value["label"]}
+        for key, value in COMPARISON_DATASETS.items()
+    ]
+    available_groups = []
+    available_metrics = []
+    summaries = []
+    units = ""
+    baseline_label = ""
+    metric_label = ""
+    comparison_error = None
+
+    try:
+        available_groups = comparison_options(dataset_key)
+        available_metrics = comparison_metrics(dataset_key)
+        if requested_dataset_key not in COMPARISON_DATASETS:
+            raise ValueError("Choose a supported comparison dataset.")
+
+        metric_keys = {item["key"] for item in available_metrics}
+        if metric_key not in metric_keys and "metric" in request.args:
+            raise ValueError("Choose a measurement available in this dataset.")
+        if metric_key not in metric_keys:
+            metric_key = (
+                "co2_mass" if "co2_mass" in metric_keys
+                else (available_metrics[0]["key"] if available_metrics else "")
+            )
+        group_keys = {item["key"] for item in available_groups}
+        if group_by_provided and group_key and group_key not in group_keys:
+            raise ValueError("Choose a comparison group available in this dataset.")
+        if not group_by_provided and available_groups:
+            group_key = (
+                "state" if "state" in group_keys else available_groups[0]["key"]
+            )
+        if aggregation not in ("mean", "sum"):
+            raise ValueError("Choose mean or total as the comparison statistic.")
+        if (
+            aggregation == "sum"
+            and metric_key in metric_keys
+            and "columns" not in COMPARISON_METRICS[metric_key]
+        ):
+            raise ValueError(
+                "Totals are only meaningful for raw measurements. "
+                "Use mean for intensities and heat rate."
+            )
+
+        if year_from_text and not year_from_text.isdigit():
+            raise ValueError("The starting year must be a whole number.")
+        if year_to_text and not year_to_text.isdigit():
+            raise ValueError("The ending year must be a whole number.")
+        year_from = int(year_from_text) if year_from_text else None
+        year_to = int(year_to_text) if year_to_text else None
+        if year_from is not None and year_to is not None and year_from > year_to:
+            raise ValueError("The starting year cannot exceed the ending year.")
+
+        if metric_key:
+            result = build_comparison(
+                dataset_key=dataset_key,
+                metric_key=metric_key,
+                group_key=group_key,
+                aggregation=aggregation,
+                baseline=baseline,
+                year_from=year_from,
+                year_to=year_to,
+            )
+            summaries = result["summaries"]
+            available_groups = result["available_groups"]
+            units = result["units"]
+            baseline_label = result["baseline"]
+            metric_label = result["metric_label"]
+        else:
+            comparison_error = (
+                "The selected dataset does not contain supported numeric measurements."
+            )
+    except (ValueError, TypeError) as exc:
+        comparison_error = str(exc)
+    except SQLAlchemyError:
+        current_app.logger.exception("Unable to load comparison data")
+        comparison_error = (
+            "Could not load comparison data. Check the database connection "
+            "and the selected dataset tables."
+        )
+
+    return render_template(
+        "comparisons.html",
+        datasets=datasets,
+        available_metrics=available_metrics,
+        available_groups=available_groups,
+        selected_dataset=dataset_key,
+        selected_metric=metric_key,
+        selected_group_by=group_key,
+        selected_aggregation=aggregation,
+        selected_baseline=baseline_label or baseline,
+        metric_label=metric_label or metric_key.replace("_", " "),
+        selected_year_from=year_from_text,
+        selected_year_to=year_to_text,
+        summaries=summaries,
+        units=units,
+        comparison_error=comparison_error,
+    )
 
 
 @main_bp.route("/login", methods=["GET", "POST"])

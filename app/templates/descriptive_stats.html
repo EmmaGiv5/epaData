@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}
-Descritptive Stats | epaData
+Descriptive Statistics | epaData
 {% endblock %}
 
 {% block header %}Descriptive Stats{% endblock %}
@@ -9,7 +9,138 @@ Descritptive Stats | epaData
 {% block content %}
 
 <section class="hero">
+    <h1>Descriptive Statistics</h1>
+    <p>Summarize a numeric emissions variable, optionally grouped by a field.</p>
 
+    <form method="GET" action="{{ url_for('main.descriptive_stats') }}">
+        <label for="dataset">Dataset:</label>
+        <select id="dataset" name="dataset">
+            <option value="annual_state"
+                {% if selected_dataset == "annual_state" %}selected{% endif %}>
+                Annual state
+            </option>
+            <option value="annual_facility"
+                {% if selected_dataset == "annual_facility" %}selected{% endif %}>
+                Annual facility
+            </option>
+            <option value="hourly_state"
+                {% if selected_dataset == "hourly_state" %}selected{% endif %}>
+                Hourly state
+            </option>
+            <option value="hourly_facility"
+                {% if selected_dataset == "hourly_facility" %}selected{% endif %}>
+                Hourly facility
+            </option>
+        </select>
+
+        <label for="variable">Numeric variable:</label>
+        <select id="variable" name="variable" required>
+            <option value="gross_load"
+                {% if selected_variable == "gross_load" %}selected{% endif %}>
+                Gross load
+            </option>
+            <option value="steam_load"
+                {% if selected_variable == "steam_load" %}selected{% endif %}>
+                Steam load
+            </option>
+            <option value="co2_mass"
+                {% if selected_variable == "co2_mass" %}selected{% endif %}>
+                CO₂ mass
+            </option>
+            <option value="so2_mass"
+                {% if selected_variable == "so2_mass" %}selected{% endif %}>
+                SO₂ mass
+            </option>
+            <option value="nox_mass"
+                {% if selected_variable == "nox_mass" %}selected{% endif %}>
+                NOx mass
+            </option>
+            <option value="heat_input"
+                {% if selected_variable == "heat_input" %}selected{% endif %}>
+                Heat input
+            </option>
+        </select>
+
+        <label for="group_by">Group by (optional):</label>
+        <select id="group_by" name="group_by">
+            <option value="">No grouping</option>
+            <option value="state"
+                {% if selected_group_by == "state" %}selected{% endif %}>
+                State
+            </option>
+            <option value="year"
+                {% if selected_group_by == "year" %}selected{% endif %}>
+                Year
+            </option>
+            <option value="facility_name"
+                {% if selected_group_by == "facility_name" %}selected{% endif %}>
+                Facility
+            </option>
+        </select>
+
+        <label for="percentiles">Additional percentiles (comma-separated):</label>
+        <input
+            id="percentiles"
+            name="percentiles"
+            type="text"
+            value="{{ selected_percentiles or '' }}"
+            placeholder="e.g. 10, 90"
+        >
+
+        <button type="submit">Calculate Statistics</button>
+    </form>
+
+    {% if stats_error %}
+        <p class="error" role="alert">{{ stats_error }}</p>
+    {% endif %}
+
+    {% if stats %}
+        <h2>Results</h2>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Group</th>
+                        <th>Count</th>
+                        <th>Missing</th>
+                        <th>Minimum</th>
+                        <th>Maximum</th>
+                        <th>Mean</th>
+                        <th>Median</th>
+                        <th>Standard deviation (sample)</th>
+                        <th>Q1</th>
+                        <th>Q3</th>
+                        <th>IQR</th>
+                        {% for percentile in stats[0].percentiles %}
+                            <th>{{ percentile }}th percentile</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in stats %}
+                        <tr>
+                            <td>{{ row.group or "All records" }}</td>
+                            <td>{{ row.count }}</td>
+                            <td>{{ row.missing_count }}</td>
+                            <td>{{ row.minimum if row.minimum is not none else "—" }}</td>
+                            <td>{{ row.maximum if row.maximum is not none else "—" }}</td>
+                            <td>{{ row.mean if row.mean is not none else "—" }}</td>
+                            <td>{{ row.median if row.median is not none else "—" }}</td>
+                            <td>{{ row.standard_deviation if row.standard_deviation is not none else "—" }}</td>
+                            <td>{{ row.q1 if row.q1 is not none else "—" }}</td>
+                            <td>{{ row.q3 if row.q3 is not none else "—" }}</td>
+                            <td>{{ row.iqr if row.iqr is not none else "—" }}</td>
+                            {% for value in row.percentiles.values() %}
+                                <td>{{ value if value is not none else "—" }}</td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% elif request.args and not stats_error %}
+        <p>No statistics were returned for the selected filters.</p>
+    {% endif %}
 </section>
 
 {% endblock %}
