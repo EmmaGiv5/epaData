@@ -1,5 +1,6 @@
-from machine_learning.prediction_service import predict_co2
+# analyze sensitivity of the model to changes in input variables
 
+from machine_learning.prediction_service import predict_co2
 
 def calculate_sensitivity(inputs):
 

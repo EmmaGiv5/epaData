@@ -1,3 +1,5 @@
+# read all available CAMPD variables
+
 import pandas as pd
 
 from app import db
