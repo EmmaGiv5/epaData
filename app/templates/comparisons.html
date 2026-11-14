@@ -4,12 +4,430 @@
 Comparisons | epaData
 {% endblock %}
 
-{% block header %}Comparisons{% endblock %}
+{% block header %}Environmental Comparisons{% endblock %}
 
 {% block content %}
 
-<section class="hero">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-</section>
+<div class="container py-4">
+
+    <h2>Environmental Analysis Dashboard</h2>
+    <p class="text-muted">
+        Filter EPA data, compare measurements, evaluate environmental
+        impacts, and explore model predictions.
+    </p>
+
+    <!-- STEP 1: FILTER DATA -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>1. Filter Your Data</h4>
+        </div>
+
+        <div class="card-body">
+
+            <div class="row g-3">
+
+                <div class="col-mod-3">
+                    <label for="startYear">Start Year</label>
+                    <select id="startYear" class="form-select">
+                        {% for year in years %}
+                        <option value="{{year}}"
+                            {% if year == 2015 %} selected {% endif %}>
+                            {{ year }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>">
+
+                <div class="col-mod-3">
+                    <label for="endYear">End Year</label>
+                    <select id="endYear" class="form-select">
+                        {% for year in years %}
+                        <option value="{{year}}"
+                            {% if year == 2025 %} selected {% endif %}>
+                            {{ year }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>">
+
+                <div class="col-md-3">
+                    <label>State</label>
+                    <select id="stateFilter" class="form-select">
+                        <option value="">All States</option>
+                        {% for state in states %}
+                        <option value="{{ state }}">{{ state }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label>Facility</label>
+                    <select id="facilityFilter" class="form-select">
+                        <option value="">All Facilities</option>
+                        {% for facility in facilities %}
+                        <option value="{{ facility[0] }}">
+                            {{ facility[1] }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+            </div>
+
+            <button id="applyFilters" class="btn btn-primary mt-3">
+                Apply Filters
+            </button>
+
+            <div id="datasetSummary" class="mt-3">
+                Apply filters to begin.
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- STEP 2: SELECT MEASUREMENTS -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>2. Select Measurements to Compare</h4>
+        </div>
+
+        <div class="card-body">
+
+            <div class="row">
+
+                <div class="col-md-6">
+                    <h6>Emissions</h6>
+
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input metric-option"
+                               value="co2_mass" id="co2">
+                        <label for="co2">CO2 Emissions</label>
+                    </div>
+
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input metric-option"
+                               value="so2_mass" id="so2">
+                        <label for="so2">SO2 Emissions</label>
+                    </div>
+
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input metric-option"
+                               value="nox_mass" id="nox">
+                        <label for="nox">NOx Emissions</label>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <h6>Operational Measurements</h6>
+
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input metric-option"
+                               value="gross_load" id="grossLoad">
+                        <label for="grossLoad">Gross Load</label>
+                    </div>
+
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input metric-option"
+                               value="heat_input" id="heatInput">
+                        <label for="heatInput">Heat Input</label>
+                    </div>
+
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input metric-option"
+                               value="operating_time" id="operatingTime">
+                        <label for="operatingTime">Operating Time</label>
+                    </div>
+                </div>
+
+            </div>
+
+            <hr>
+
+            <div class="row align-items-end">
+
+                <div class="col-md-4">
+                    <label>Chart Type</label>
+                    <select id="chartType" class="form-select">
+                        <option value="line">Line Chart</option>
+                        <option value="bar">Bar Chart</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label>Compare By</label>
+                    <select id="groupBy" class="form-select">
+                        <option value="year">Year</option>
+                        <option value="state">State</option>
+                        <option value="facility">Facility</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <button id="generateChart" class="btn btn-success w-100">
+                        Generate Comparison
+                    </button>
+                </div>
+
+            </div>
+
+            <div class="mt-4">
+                <canvas id="comparisonChart"></canvas>
+            </div>
+
+            <div id="chartMessage" class="mt-2"></div>
+
+        </div>
+    </div>
+
+
+    <!-- STEP 3: ENVIRONMENTAL IMPACT -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>3. Environmental Impact Assessment</h4>
+        </div>
+
+        <div class="card-body">
+
+            <label>Environmental Category</label>
+
+            <select id="impactCategory" class="form-select">
+                <option value="">Select Category</option>
+                <option value="climate_change">Climate Change</option>
+                <option value="acidification">Acidification</option>
+                <option value="smog">Smog Formation</option>
+            </select>
+
+            <button id="calculateImpact" class="btn btn-primary mt-3">
+                Calculate Environmental Impact
+            </button>
+
+            <div id="impactResults" class="mt-4"></div>
+
+        </div>
+    </div>
+
+
+    <!-- STEP 4: PREDICTIONS -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>4. Model Predictions</h4>
+        </div>
+
+        <div class="card-body">
+
+            <p>
+                Generate predicted CO2 emissions using the selected
+                facility's operational information.
+            </p>
+
+            <button id="generatePrediction" class="btn btn-primary">
+                Generate Predictions
+            </button>
+
+            <div id="predictionResults" class="mt-4"></div>
+
+        </div>
+    </div>
+
+
+    <!-- STEP 5: SENSITIVITY ANALYSIS -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h4>5. Sensitivity and Scenario Analysis</h4>
+        </div>
+
+        <div class="card-body">
+
+            <div class="row g-3">
+
+                <div class="col-md-4">
+                    <label>Variable to Modify</label>
+                    <select id="sensitivityVariable" class="form-select">
+                        <option value="gross_load">Gross Load</option>
+                        <option value="heat_input">Heat Input</option>
+                        <option value="operating_time">Operating Time</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4">
+                    <label>Percentage Change (%)</label>
+                    <input type="number" id="sensitivityChange"
+                           class="form-control" value="10"
+                           min="0" max="100">
+                </div>
+
+                <div class="col-md-4 d-flex align-items-end">
+                    <button id="runSensitivity" class="btn btn-warning w-100">
+                        Run Sensitivity Analysis
+                    </button>
+                </div>
+
+            </div>
+
+            <div id="sensitivityResults" class="mt-4"></div>
+
+            <div class="mt-4">
+                <canvas id="sensitivityChart"></canvas>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<script>
+
+let comparisonChart = null;
+
+// Generate comparison graph
+document.getElementById("generateChart").addEventListener("click", async function () {
+
+    const startYear = document.getElementById("startYear").value;
+    const endYear = document.getElementById("endYear").value;
+
+    const state = document.getElementById("stateFilter").value;
+    const facility = document.getElementById("facilityFilter").value;
+
+    const chartType = document.getElementById("chartType").value;
+    const groupBy = document.getElementById("groupBy").value;
+
+    const selectedMetrics = Array.from(
+        document.querySelectorAll(".metric-option:checked")
+    ).map(input => input.value);
+
+    const message = document.getElementById("chartMessage");
+
+    if (selectedMetrics.length === 0) {
+        message.textContent = "Please select at least one measurement.";
+        return;
+    }
+
+    if (Number(startYear) > Number(endYear)) {
+        message.textContent = "Start year cannot exceed end year.";
+        return;
+    }
+
+    message.textContent = "Generating graph...";
+
+    const params = new URLSearchParams();
+
+    params.append("start_year", startYear);
+    params.append("end_year", endYear);
+    params.append("state", state);
+    params.append("facility", facility);
+    params.append("group_by", groupBy);
+
+    selectedMetrics.forEach(metric => {
+        params.append("metrics[]", metric);
+    });
+
+    try {
+
+        const response = await fetch(
+            `/api/comparison-data?${params.toString()}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Unable to retrieve data.");
+        }
+
+        if (!data.labels || data.labels.length === 0) {
+            message.textContent = "No records found for these filters.";
+            return;
+        }
+
+        const metricNames = {
+            co2_mass: "CO2 Emissions",
+            so2_mass: "SO2 Emissions",
+            nox_mass: "NOx Emissions",
+            gross_load: "Gross Load",
+            heat_input: "Heat Input",
+            operating_time: "Operating Time"
+        };
+
+        const colors = [
+            "#2563eb",
+            "#dc2626",
+            "#16a34a",
+            "#9333ea",
+            "#ea580c",
+            "#0891b2"
+        ];
+
+        const datasets = selectedMetrics.map((metric, index) => ({
+            label: metricNames[metric],
+            data: data.datasets[metric],
+            borderColor: colors[index % colors.length],
+            backgroundColor: colors[index % colors.length],
+            borderWidth: 2,
+            tension: 0.3,
+            spanGaps: true
+        }));
+
+        const ctx = document.getElementById("comparisonChart");
+
+        if (comparisonChart) {
+            comparisonChart.destroy();
+        }
+
+        comparisonChart = new Chart(ctx, {
+            type: chartType,
+
+            data: {
+                labels: data.labels,
+                datasets: datasets
+            },
+
+            options: {
+                responsive: true,
+
+                plugins: {
+                    legend: {
+                        display: true
+                    },
+
+                    title: {
+                        display: true,
+                        text: "Environmental Measurement Comparison"
+                    }
+                },
+
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: "Average Measurement Value"
+                        }
+                    },
+
+                    x: {
+                        title: {
+                            display: true,
+                            text: groupBy
+                        }
+                    }
+                }
+            }
+        });
+
+        message.textContent = "Comparison graph generated successfully.";
+
+    } catch (error) {
+
+        console.error(error);
+
+        message.textContent = error.message;
+
+    }
+
+});
+
+</script>
 
 {% endblock %}

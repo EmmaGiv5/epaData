@@ -2,43 +2,59 @@
 
 from machine_learning.prediction_service import predict_co2
 
-def calculate_sensitivity(inputs):
 
-    variables = [
+def calculate_sensitivity(
+    inputs,
+    variable,
+    model_name="model_one",
+    percentage=10
+):
+
+    if variable not in (
         "gross_load",
         "heat_input",
         "operating_time",
-    ]
+    ):
+        raise ValueError("Invalid sensitivity variable.")
 
-    results = {}
+    if not 0 <= percentage <= 100:
+        raise ValueError("Invalid percentage change.")
 
-    for variable in variables:
+    original_value = float(inputs[variable])
 
-        original_value = float(inputs[variable])
+    if original_value < 0:
+        raise ValueError("Input cannot be negative.")
 
-        if original_value <= 0:
-            change = max(abs(original_value) * 0.10, 1)
-        else:
-            change = original_value * 0.10
+    baseline = predict_co2(inputs, model_name)
 
-        increased = inputs.copy()
-        decreased = inputs.copy()
+    change = original_value * percentage / 100
 
-        increased[variable] = original_value + change
-        decreased[variable] = max(0, original_value - change)
+    increased = inputs.copy()
+    decreased = inputs.copy()
 
-        original_prediction = predict_co2(inputs)
-        higher_prediction = predict_co2(increased)
-        lower_prediction = predict_co2(decreased)
+    increased[variable] = original_value + change
+    decreased[variable] = max(0, original_value - change)
 
-        results[variable] = {}
+    higher_prediction = predict_co2(
+        increased, model_name
+    )
 
-        for model in original_prediction:
+    lower_prediction = predict_co2(
+        decreased, model_name
+    )
 
-            results[variable][model] = {
-                "original": original_prediction[model],
-                "increased": higher_prediction[model],
-                "decreased": lower_prediction[model],
-            }
-
-    return results
+    return {
+        "variable": variable,
+        "baseline_input": original_value,
+        "baseline_prediction": baseline,
+        "increased": {
+            "input": increased[variable],
+            "prediction": higher_prediction,
+            "absolute_change": higher_prediction - baseline,
+        },
+        "decreased": {
+            "input": decreased[variable],
+            "prediction": lower_prediction,
+            "absolute_change": lower_prediction - baseline,
+        },
+    }

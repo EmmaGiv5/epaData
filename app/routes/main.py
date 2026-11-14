@@ -153,14 +153,18 @@ def home():
 
 @main_bp.route("/visualize")
 def visualize():
-    states = (
-        db.session.query(Facility.state)
-        .distinct()
+
+    # Get available states
+    states = [
+        row[0]
+        for row in db.session.query(Facility.state)
         .filter(Facility.state.isnot(None))
+        .distinct()
         .order_by(Facility.state)
         .all()
-    )
+    ]
 
+    # Get available facilities
     facilities = (
         db.session.query(
             Facility.id,
@@ -170,20 +174,154 @@ def visualize():
         .all()
     )
 
-    years = (
-        db.session.query(AnnualRecord.reporting_year)
+    # Get available reporting years
+    years = [
+        row[0]
+        for row in db.session.query(
+            AnnualRecord.reporting_year
+        )
+        .filter(AnnualRecord.reporting_year.isnot(None))
         .distinct()
         .order_by(AnnualRecord.reporting_year)
         .all()
-    )
+    ]
+
+    # Get available fuel types
+    fuels = [
+        row[0]
+        for row in db.session.query(Unit.primary_fuel)
+        .filter(Unit.primary_fuel.isnot(None))
+        .distinct()
+        .order_by(Unit.primary_fuel)
+        .all()
+    ]
 
     return render_template(
         "visualize.html",
-        states=[s[0] for s in states],
+        states=states,
         facilities=facilities,
-        years=[y[0] for y in years]
+        years=years,
+        fuels=fuels
     )
 
+@main_bp.route("/api/visualization-data")
+def visualization_data():
+
+    try:
+
+        query = (
+            db.session.query(
+                AnnualRecord,
+                Unit,
+                Facility
+            )
+            .join(
+                Unit,
+                AnnualRecord.unit_id == Unit.id
+            )
+            .join(
+                Facility,
+                Unit.facility_id == Facility.id
+            )
+        )
+
+        # Get filter selections
+        start_year = request.args.get(
+            "start_year", type=int
+        )
+
+        end_year = request.args.get(
+            "end_year", type=int
+        )
+
+        state = request.args.get("state", "").strip()
+
+        facility_id = request.args.get(
+            "facility_id", type=int
+        )
+
+        fuel = request.args.get("fuel", "").strip()
+
+        # Apply filters
+        if start_year:
+            query = query.filter(
+                AnnualRecord.reporting_year >= start_year
+            )
+
+        if end_year:
+            query = query.filter(
+                AnnualRecord.reporting_year <= end_year
+            )
+
+        if start_year and end_year and start_year > end_year:
+            return {
+                "error": "Start year cannot exceed end year."
+            }, 400
+
+        if state:
+            query = query.filter(
+                Facility.state == state
+            )
+
+        if facility_id:
+            query = query.filter(
+                Facility.id == facility_id
+            )
+
+        if fuel:
+            query = query.filter(
+                Unit.primary_fuel == fuel
+            )
+
+        records = query.all()
+
+        data = []
+
+        for annual, unit, facility in records:
+
+            data.append({
+
+                "year": annual.reporting_year,
+
+                "state": facility.state,
+
+                "facility": facility.facility_name,
+
+                "facility_id": facility.id,
+
+                "unit": unit.epa_unit_id,
+
+                "fuel": unit.primary_fuel,
+
+                "gross_load": annual.gross_load,
+
+                "heat_input": annual.heat_input,
+
+                "operating_time": annual.operating_time,
+
+                "co2_mass": annual.co2_mass,
+
+                "so2_mass": annual.so2_mass,
+
+                "nox_mass": annual.nox_mass
+
+            })
+
+        return {
+            "total_records": len(data),
+            "records": data
+        }
+
+    except SQLAlchemyError:
+
+        current_app.logger.exception(
+            "Visualization data retrieval failed"
+        )
+
+        return {
+            "error": "Unable to retrieve visualization data."
+        }, 500
+    
 @main_bp.route("/calculate", methods=["GET", "POST"])
 def calculate():
     states = []
@@ -326,8 +464,35 @@ def descriptive_stats():
 
 @main_bp.route("/comparisons")
 def comparisons():
-    return render_template("comparisons.html")
 
+    states = [
+        "Kentucky",
+        "Tennessee",
+        "Georgia",
+        "Mississippi",
+        "Alabama",
+    ]
+
+    facilities = (
+        db.session.query(
+            Facility.id,
+            Facility.facility_name
+        )
+        .filter(Facility.state.in_([
+            "KY", "TN", "GA", "MS", "AL"
+        ]))
+        .order_by(Facility.facility_name)
+        .all()
+    )
+
+    years = list(range(2015, 2026))
+
+    return render_template(
+        "comparisons.html",
+        states=states,
+        facilities=facilities,
+        years=years
+    )
 
 @main_bp.route("/login", methods=["GET", "POST"])
 def login():

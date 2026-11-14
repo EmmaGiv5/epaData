@@ -9,33 +9,33 @@ from pathlib import Path
 MODEL_DIR = Path(__file__).resolve().parents[1] / "saved_models"
 
 
-def predict_co2(inputs):
+MODEL_FILES = {
+    "model_one": MODEL_DIR / "model_one.joblib",
+    "model_two": MODEL_DIR / "model_two.joblib",
+}
 
-    results = {}
 
-    models = {
-        "Prediction Model 1": MODEL_DIR / "model_one.joblib",
-        "Sensitivity Analysis Model 2": MODEL_DIR / "model_two.joblib",
-    }
+def predict_co2(inputs, model_name="model_one"):
 
-    for name, path in models.items():
+    if model_name not in MODEL_FILES:
+        raise ValueError("Invalid prediction model.")
 
-        if not path.exists():
-            raise FileNotFoundError(
-                f"Model not found: {path}"
-            )
+    model_path = MODEL_FILES[model_name]
 
-        saved = joblib.load(path)
-
-        model = saved["model"]
-        features = saved["features"]
-
-        dataframe = pd.DataFrame(
-            [{key: inputs[key] for key in features}]
+    if not model_path.exists():
+        raise FileNotFoundError(
+            f"Model not found: {model_path}"
         )
 
-        prediction = model.predict(dataframe)[0]
+    saved = joblib.load(model_path)
 
-        results[name] = round(float(prediction), 2)
+    model = saved["model"]
+    features = saved["features"]
 
-    return results
+    dataframe = pd.DataFrame([
+        {key: inputs[key] for key in features}
+    ])
+
+    prediction = model.predict(dataframe)[0]
+
+    return round(float(prediction), 2)
