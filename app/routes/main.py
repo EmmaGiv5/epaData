@@ -6,6 +6,7 @@
 # Creates your first webpage
 
 #import psycopg2
+import pandas as pd
 from dotenv import load_dotenv
 import os
 import re
@@ -39,6 +40,7 @@ from flask import (
     Blueprint,
     current_app,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -452,35 +454,397 @@ def calculate():
         calc_submitted=calc_submitted,
     )
 
+@main_bp.route("/api/calculation-data")
+def calculation_data():
 
-@main_bp.route("/factored-calculations")
-def factored_calculations():
-    return render_template("factored_calculations.html")
+    # Allowed numeric measurements
+    metric_columns = {
+        "co2_mass": AnnualRecord.co2_mass,
+        "so2_mass": AnnualRecord.so2_mass,
+        "nox_mass": AnnualRecord.nox_mass,
+        "gross_load": AnnualRecord.gross_load,
+        "heat_input": AnnualRecord.heat_input,
+        "operating_time": AnnualRecord.operating_time,
+    }
 
+    metric_names = {
+        "co2_mass": "CO2 Emissions",
+        "so2_mass": "SO2 Emissions",
+        "nox_mass": "NOx Emissions",
+        "gross_load": "Gross Load",
+        "heat_input": "Heat Input",
+        "operating_time": "Operating Time",
+    }
+
+    try:
+        # Get user selections
+        mode = request.args.get("mode", "comparison")
+
+        start_year = request.args.get("start_year", type=int)
+        end_year = request.args.get("end_year", type=int)
+
+        state = request.args.get("state", "").strip()
+        facility_id = request.args.get("facility_id", type=int)
+
+        group_by = request.args.get("group_by", "year")
+
+        if mode not in ("descriptive", "comparison"):
+            return {"error": "Invalid calculation mode."}, 400
+
+        if group_by not in ("year", "state", "facility"):
+            return {"error": "Invalid grouping option."}, 400
+
+        if start_year and end_year and start_year > end_year:
+            return {"error": "Start year cannot exceed end year."}, 400
+
+        # Descriptive statistics uses one selected pollutant.
+        if mode == "descriptive":
+            selected_metrics = [
+                request.args.get("pollutant", "co2_mass")
+            ]
+        else:
+            selected_metrics = request.args.getlist("metrics[]")
+
+        if not selected_metrics:
+            return {"error": "Select at least one measurement."}, 400
+
+        # Validate measurement names.
+        if any(metric not in metric_columns for metric in selected_metrics):
+            return {"error": "Invalid measurement selected."}, 400
+
+        # Build database query.
+        query = (
+            db.session.query(
+                AnnualRecord.reporting_year.label("year"),
+                Facility.state.label("state"),
+                Facility.id.label("facility_id"),
+                Facility.facility_name.label("facility"),
+                *[
+                    metric_columns[metric].label(metric)
+                    for metric in selected_metrics
+                ]
+            )
+            .join(Unit, AnnualRecord.unit_id == Unit.id)
+            .join(Facility, Unit.facility_id == Facility.id)
+        )
+
+        # Apply filters.
+        if start_year:
+            query = query.filter(
+                AnnualRecord.reporting_year >= start_year
+            )
+
+        if end_year:
+            query = query.filter(
+                AnnualRecord.reporting_year <= end_year
+            )
+
+        if state:
+            query = query.filter(Facility.state == state)
+
+        if facility_id:
+            query = query.filter(Facility.id == facility_id)
+
+        records = query.all()
+
+        if not records:
+            return {
+                "labels": [],
+                "datasets": {},
+                "statistics": {},
+                "message": "No records found."
+            }
+
+        # Convert database results into a pandas DataFrame.
+        df = pd.DataFrame([
+            dict(record._mapping)
+            for record in records
+        ])
+
+        # Select the grouping dimension.
+        group_columns = {
+            "year": "year",
+            "state": "state",
+            "facility": "facility"
+        }
+
+        group_column = group_columns[group_by]
+
+        df = df.dropna(subset=[group_column])
+
+        if df.empty:
+            return {
+                "labels": [],
+                "datasets": {},
+                "statistics": {}
+            }
+
+        # Group measurements and calculate averages.
+        grouped = (
+            df.groupby(group_column)[selected_metrics]
+            .mean()
+        )
+
+        # Convert chart labels to strings.
+        labels = [str(value) for value in grouped.index]
+
+        datasets = {}
+
+        for metric in selected_metrics:
+            datasets[metric] = [
+                None if pd.isna(value) else float(value)
+                for value in grouped[metric]
+            ]
+
+        # Calculate descriptive statistics for the selected data.
+        statistics = {}
+
+        for metric in selected_metrics:
+            values = pd.to_numeric(
+                df[metric],
+                errors="coerce"
+            ).dropna()
+
+            statistics[metric] = {
+                "name": metric_names[metric],
+                "count": int(values.count()),
+                "mean": float(values.mean()) if not values.empty else None,
+                "median": float(values.median()) if not values.empty else None,
+                "std": float(values.std()) if values.count() > 1 else None,
+                "minimum": float(values.min()) if not values.empty else None,
+                "maximum": float(values.max()) if not values.empty else None
+            }
+
+        return {
+            "labels": labels,
+            "datasets": datasets,
+            "statistics": statistics,
+            "total_records": len(df)
+        }
+
+    except SQLAlchemyError:
+        current_app.logger.exception(
+            "Calculation data retrieval failed."
+        )
+
+        return {
+            "error": "Unable to retrieve calculation data."
+        }, 500
+
+    except (ValueError, TypeError):
+        current_app.logger.exception(
+            "Calculation data processing failed."
+        )
+
+        return {
+            "error": "Unable to process the selected data."
+        }, 400
 
 @main_bp.route("/descriptive-stats")
 def descriptive_stats():
-    return render_template("descriptive_stats.html")
 
-@main_bp.route("/comparisons")
-def comparisons():
-
+    # Only show these five states
     states = [
         "Kentucky",
         "Tennessee",
-        "Georgia",
         "Mississippi",
-        "Alabama",
+        "Georgia",
+        "Alabama"
     ]
+
+    # Reporting years from January 1, 2015 through January 1, 2025
+    years = list(range(2015, 2026))
 
     facilities = (
         db.session.query(
             Facility.id,
             Facility.facility_name
         )
-        .filter(Facility.state.in_([
-            "KY", "TN", "GA", "MS", "AL"
-        ]))
+        .filter(
+            Facility.state.in_(["KY", "TN", "MS", "GA", "AL"])
+        )
+        .order_by(Facility.facility_name)
+        .all()
+    )
+
+    return render_template(
+        "descriptive_stats.html",
+        states=states,
+        years=years,
+        facilities=facilities
+    )
+
+@main_bp.route("/factored-calculations", methods=["GET", "POST"])
+def factored_calculations():
+
+    states = []
+    years = []
+
+    calc_results = []
+    calc_state = ""
+    calc_year = ""
+    calc_submitted = request.method == "POST"
+    calc_error = None
+
+    try:
+        annual_data = Table(
+            "calc_data_annual",
+            MetaData(),
+            autoload_with=db.engine,
+        )
+
+        states = [
+            row[0]
+            for row in db.session.execute(
+                select(annual_data.c["State"])
+                .where(annual_data.c["State"].is_not(None))
+                .distinct()
+                .order_by(annual_data.c["State"])
+            ).all()
+        ]
+
+        years = [
+            int(row[0])
+            for row in db.session.execute(
+                select(annual_data.c["Year"])
+                .where(annual_data.c["Year"].is_not(None))
+                .distinct()
+                .order_by(annual_data.c["Year"])
+            ).all()
+        ]
+
+        if request.method == "POST":
+
+            calc_state = request.form.get("state", "").strip()
+            calc_year = request.form.get("year", "").strip()
+
+            factors_by_category = _read_traci_factors()
+
+            query = select(
+                annual_data.c["State"].label("state"),
+                annual_data.c["Year"].label("year"),
+                *[
+                    func.sum(
+                        annual_data.c[column]
+                    ).label(substance)
+                    for substance, column in TRACI_EMISSIONS_COLUMNS.items()
+                ],
+            ).group_by(
+                annual_data.c["State"],
+                annual_data.c["Year"]
+            )
+
+            if calc_state:
+                query = query.where(
+                    annual_data.c["State"] == calc_state
+                )
+
+            if calc_year:
+                query = query.where(
+                    annual_data.c["Year"] == int(calc_year)
+                )
+
+            emissions_groups = db.session.execute(
+                query
+            ).mappings().all()
+
+            for group in emissions_groups:
+
+                for category, category_factors in factors_by_category.items():
+
+                    impact_value = 0.0
+                    contributing_substances = []
+
+                    for substance, factor in category_factors.items():
+
+                        mass = group[substance]
+
+                        if mass is None:
+                            continue
+
+                        mass_kg = float(mass) * SHORT_TON_TO_KILOGRAMS
+
+                        impact_value += mass_kg * factor
+
+                        contributing_substances.append(substance)
+
+                    if not contributing_substances:
+                        continue
+
+                    unit_start = category.find("(")
+                    unit_end = category.rfind(")")
+
+                    impact_unit = (
+                        category[unit_start + 1:unit_end]
+                        if unit_start >= 0 and unit_end > unit_start
+                        else ""
+                    )
+
+                    calc_results.append({
+                        "state": group["state"],
+                        "year": group["year"],
+                        "category": category.split(" (", 1)[0],
+                        "value": impact_value,
+                        "unit": impact_unit,
+                        "substances": ", ".join(
+                            contributing_substances
+                        ),
+                    })
+
+    except (SQLAlchemyError, OSError, ValueError) as exc:
+
+        current_app.logger.exception(
+            "Factored calculation failed"
+        )
+
+        calc_error = str(exc)
+
+    return render_template(
+        "factored_calculations.html",
+        states=states,
+        years=years,
+        calc_state=calc_state,
+        calc_year=calc_year,
+        calc_results=calc_results,
+        calc_submitted=calc_submitted,
+        calc_error=calc_error,
+    )
+
+@main_bp.route("/check-calc-columns")
+def check_calc_columns():
+
+    annual_data = Table(
+        "calc_data_annual",
+        MetaData(),
+        autoload_with=db.engine
+    )
+
+    columns = list(annual_data.c.keys())
+
+    return {
+        "table": "calc_data_annual",
+        "columns": columns
+    }
+
+@main_bp.route("/comparisons")
+def comparisons():
+
+    target_states = [
+        ("KY", "Kentucky"),
+        ("TN", "Tennessee"),
+        ("GA", "Georgia"),
+        ("AL", "Alabama"),
+        ("MS", "Mississippi"),
+    ]
+
+    state_codes = [code for code, name in target_states]
+
+    facilities = (
+        db.session.query(
+            Facility.id,
+            Facility.facility_name
+        )
+        .filter(Facility.state.in_(state_codes))
         .order_by(Facility.facility_name)
         .all()
     )
@@ -489,10 +853,187 @@ def comparisons():
 
     return render_template(
         "comparisons.html",
-        states=states,
+        states=target_states,
         facilities=facilities,
         years=years
     )
+
+@main_bp.route("/api/comparison-data")
+def comparison_data():
+
+    try:
+        # Available EPA measurements
+        metric_fields = {
+            "co2_mass": AnnualRecord.co2_mass,
+            "so2_mass": AnnualRecord.so2_mass,
+            "nox_mass": AnnualRecord.nox_mass,
+        }
+
+        # Operational measurements
+        operational_metrics = [
+            "gross_load",
+            "heat_input",
+            "operating_time"
+        ]
+
+        for metric in operational_metrics:
+            if hasattr(AnnualRecord, metric):
+                metric_fields[metric] = getattr(AnnualRecord, metric)
+
+        # Get selected measurements
+        selected_metrics = request.args.getlist("metrics[]")
+
+        # Backward compatibility with the previous API
+        if not selected_metrics:
+            selected_metrics = [
+                request.args.get("metric", "co2_mass")
+            ]
+
+        invalid_metrics = [
+            metric for metric in selected_metrics
+            if metric not in metric_fields
+        ]
+
+        if invalid_metrics:
+            return {
+                "error": (
+                    "Unsupported measurements: "
+                    + ", ".join(invalid_metrics)
+                )
+            }, 400
+
+        # Get filters
+        start_year = request.args.get("start_year", type=int)
+        end_year = request.args.get("end_year", type=int)
+
+        state = request.args.get("state")
+        facility = request.args.get("facility")
+
+        selected_states = request.args.getlist("states")
+        selected_facilities = request.args.getlist("facilities")
+
+        group_by = request.args.get("group_by", "year")
+
+        if start_year and end_year and start_year > end_year:
+            return {
+                "error": "Start year cannot exceed end year."
+            }, 400
+
+        # Determine grouping
+        if group_by == "year":
+            group_field = AnnualRecord.reporting_year
+
+        elif group_by == "state":
+            group_field = Facility.state
+
+        elif group_by == "facility":
+            group_field = Facility.facility_name
+
+        else:
+            return {
+                "error": "Invalid comparison grouping."
+            }, 400
+
+        # Build query
+        metric_columns = [
+            func.avg(metric_fields[metric]).label(metric)
+            for metric in selected_metrics
+        ]
+
+        query = (
+            db.session.query(
+                group_field.label("group_label"),
+                *metric_columns
+            )
+            .join(Unit, AnnualRecord.unit_id == Unit.id)
+            .join(Facility, Unit.facility_id == Facility.id)
+        )
+
+        # Restrict to the five target states
+        target_states = ["KY", "TN", "MS", "GA", "AL"]
+
+        query = query.filter(
+            Facility.state.in_(target_states)
+        )
+
+        # Apply state filter
+        if state:
+            query = query.filter(Facility.state == state)
+
+        if selected_states:
+            query = query.filter(
+                Facility.state.in_(selected_states)
+            )
+
+        # Apply facility filter
+        if facility:
+            query = query.filter(
+                Facility.id == int(facility)
+            )
+
+        if selected_facilities:
+            facility_ids = [
+                int(value) for value in selected_facilities
+            ]
+
+            query = query.filter(
+                Facility.id.in_(facility_ids)
+            )
+
+        # Apply year filters
+        if start_year is not None:
+            query = query.filter(
+                AnnualRecord.reporting_year >= start_year
+            )
+
+        if end_year is not None:
+            query = query.filter(
+                AnnualRecord.reporting_year <= end_year
+            )
+
+        # Group and sort
+        query = query.group_by(group_field)
+
+        query = query.order_by(group_field)
+
+        rows = query.all()
+
+        # Prepare chart datasets
+        labels = []
+        datasets = {
+            metric: [] for metric in selected_metrics
+        }
+
+        for row in rows:
+
+            labels.append(str(row[0]))
+
+            for index, metric in enumerate(selected_metrics):
+
+                value = row[index + 1]
+
+                datasets[metric].append(
+                    float(value) if value is not None else None
+                )
+
+        return {
+            "labels": labels,
+            "datasets": datasets,
+            "total_records": len(rows),
+            "metrics": selected_metrics,
+            "group_by": group_by
+        }
+
+    except (SQLAlchemyError, ValueError, TypeError):
+        db.session.rollback()
+
+        current_app.logger.exception(
+            "Comparison data retrieval failed"
+        )
+
+        return {
+            "error": "Unable to retrieve comparison data."
+        }, 500
 
 @main_bp.route("/login", methods=["GET", "POST"])
 def login():

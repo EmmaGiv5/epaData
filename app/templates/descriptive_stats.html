@@ -1,15 +1,261 @@
 {% extends "base.html" %}
 
-{% block title %}
-Descritptive Stats | epaData
-{% endblock %}
+{% block title %}Descriptive Statistics | epaData{% endblock %}
 
-{% block header %}Descriptive Stats{% endblock %}
+{% block header %}Descriptive Statistics{% endblock %}
 
 {% block content %}
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <section class="hero">
 
+    <h1>Descriptive Statistics</h1>
+
+    <p>Filter EPA emissions data and generate descriptive statistics and visualizations.</p>
+
+    <div class="card">
+
+        <h2>Filter Data</h2>
+
+        <label>Start Year</label>
+        <select id="startYear">
+            {% for year in years %}
+            <option value="{{ year }}">{{ year }}</option>
+            {% endfor %}
+        </select>
+
+        <label>End Year</label>
+        <select id="endYear">
+            {% for year in years %}
+            <option value="{{ year }}" selected>{{ year }}</option>
+            {% endfor %}
+        </select>
+
+        <label>State</label>
+        <select id="stateFilter">
+            <option value="">All States</option>
+            {% for state in states %}
+            <option value="{{ state }}">{{ state }}</option>
+            {% endfor %}
+        </select>
+
+        <label>Facility</label>
+        <select id="facilityFilter">
+            <option value="">All Facilities</option>
+            {% for facility in facilities %}
+            <option value="{{ facility[0] }}">{{ facility[1] }}</option>
+            {% endfor %}
+        </select>
+        
+        <label>Pollutant / Measurement</label>
+        <select id="pollutant">
+            <option value="co2_mass">CO2 Emissions</option>
+            <option value="so2_mass">SO2 Emissions</option>
+            <option value="nox_mass">NOx Emissions</option>
+            <option value="gross_load">Gross Load</option>
+            <option value="heat_input">Heat Input</option>
+            <option value="operating_time">Operating Time</option>
+        </select>
+
+        <label>Group Results By</label>
+        <select id="groupBy">
+            <option value="year">Year</option>
+            <option value="state">State</option>
+            <option value="facility">Facility</option>
+        </select>
+
+        <label>Chart Type</label>
+        <select id="chartType">
+            <option value="line">Line Graph</option>
+            <option value="bar">Bar Graph</option>
+        </select>
+
+        <button id="generateStats" type="button">
+            Generate Statistics and Graph
+        </button>
+
+    </div>
+
+    <div id="statsMessage"></div>
+
+    <div class="card">
+        <h2>Generated Graph</h2>
+        <canvas id="statisticsChart"></canvas>
+    </div>
+
+    <div class="card">
+        <h2>Descriptive Statistics Results</h2>
+
+        <div id="statisticsResults"></div>
+    </div>
+
 </section>
+
+<script>
+
+let statisticsChart = null;
+
+document.getElementById("generateStats").addEventListener("click", async function() {
+
+    const params = new URLSearchParams();
+
+    params.append("mode", "descriptive");
+
+    params.append(
+        "start_year",
+        document.getElementById("startYear").value
+    );
+
+    params.append(
+        "end_year",
+        document.getElementById("endYear").value
+    );
+
+    params.append(
+        "state",
+        document.getElementById("stateFilter").value
+    );
+
+    params.append(
+        "facility_id",
+        document.getElementById("facilityFilter").value
+    );
+
+    params.append(
+        "pollutant",
+        document.getElementById("pollutant").value
+    );
+
+    params.append(
+        "group_by",
+        document.getElementById("groupBy").value
+    );
+
+    const message = document.getElementById("statsMessage");
+
+    message.textContent = "Calculating statistics...";
+
+    try {
+
+        const response = await fetch(
+            `/api/calculation-data?${params.toString()}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error);
+        }
+
+        if (!data.labels || data.labels.length === 0) {
+            message.textContent = "No records found for these filters.";
+            document.getElementById("statisticsResults").innerHTML = "";
+            if (statisticsChart) {
+                statisticsChart.destroy();
+                statisticsChart = null;
+            }
+            return;
+        }
+
+        const metric = document.getElementById("pollutant").value;
+
+        const names = {
+            co2_mass: "CO2 Emissions",
+            so2_mass: "SO2 Emissions",
+            nox_mass: "NOx Emissions",
+            gross_load: "Gross Load",
+            heat_input: "Heat Input",
+            operating_time: "Operating Time"
+        };
+
+        // Generate graph
+        const ctx = document.getElementById("statisticsChart");
+
+        if (statisticsChart) {
+            statisticsChart.destroy();
+        }
+
+        statisticsChart = new Chart(ctx, {
+
+            type: document.getElementById("chartType").value,
+
+            data: {
+                labels: data.labels,
+
+                datasets: [{
+                    label: names[metric] + " Average",
+                    data: data.datasets[metric],
+                    borderColor: "#2563eb",
+                    backgroundColor: "rgba(37, 99, 235, 0.25)",
+                    borderWidth: 2,
+                    tension: 0.3
+                }]
+            },
+
+            options: {
+                responsive: true,
+
+                plugins: {
+                    title: {
+                        display: true,
+                        text: names[metric] + " Descriptive Analysis"
+                    }
+                },
+
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+
+        });
+
+        // Display statistical calculations
+        const stats = data.statistics[metric];
+
+        document.getElementById("statisticsResults").innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Measurement</th>
+                        <th>Count</th>
+                        <th>Mean</th>
+                        <th>Median</th>
+                        <th>Standard Deviation</th>
+                        <th>Minimum</th>
+                        <th>Maximum</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    <tr>
+                        <td>${stats.name}</td>
+                        <td>${stats.count}</td>
+                        <td>${stats.mean ?? "N/A"}</td>
+                        <td>${stats.median ?? "N/A"}</td>
+                        <td>${stats.std ?? "N/A"}</td>
+                        <td>${stats.minimum ?? "N/A"}</td>
+                        <td>${stats.maximum ?? "N/A"}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p>Total records analyzed: ${data.total_records}</p>
+        `;
+
+        message.textContent = "Statistics and graph generated successfully.";
+
+    } catch (error) {
+
+        console.error(error);
+        message.textContent = error.message || "Unable to generate statistics.";
+
+    }
+
+});
+
+</script>
 
 {% endblock %}
