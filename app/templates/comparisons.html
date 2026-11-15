@@ -66,6 +66,18 @@ Comparisons | epaData
             </option>
         </select>
 
+        <label for="chart">Chart style:</label>
+        <select id="chart" name="chart">
+            <option value="bar"
+                {% if selected_chart_type == "bar" %}selected{% endif %}>
+                Bar chart
+            </option>
+            <option value="line"
+                {% if selected_chart_type == "line" %}selected{% endif %}>
+                Line chart
+            </option>
+        </select>
+
         <label for="year_from">Reporting year from (optional):</label>
         <input
             id="year_from"
@@ -178,7 +190,7 @@ Comparisons | epaData
     <script>
         const comparisonRows = {{ summaries | tojson }};
         new Chart(document.getElementById("comparisonChart"), {
-            type: "bar",
+            type: {{ selected_chart_type | tojson }},
             data: {
                 labels: comparisonRows.map(row => row.group),
                 datasets: [{

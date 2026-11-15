@@ -9,6 +9,7 @@
     <title>{% block title %}epaData{% endblock %}</title>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='js/css/style.css') }}">
+    {% block head %}{% endblock %}
 </head>
 
 <body>
@@ -68,6 +69,10 @@
             <br>
             <a href="{{ url_for('download.download_page') }}">
                 Data Download
+            </a>
+            <br>
+            <a href="{{ url_for('main.analysis_builder') }}">
+                Analysis Builder
             </a>
             <br>
             <a href="{{ url_for('main.calculate') }}">

@@ -203,9 +203,10 @@ class ComparisonServiceTests(unittest.TestCase):
     def test_comparison_route_renders_all_records_and_chart(self):
         response = self.app.test_client().get(
             "/comparisons?dataset=annual_state&metric=co2_intensity"
-            "&group_by=&aggregation=mean"
+            "&group_by=&aggregation=mean&chart=line"
         )
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"All records", response.data)
         self.assertIn(b"comparisonChart", response.data)
+        self.assertIn(b'type: "line"', response.data)

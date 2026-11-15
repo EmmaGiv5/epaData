@@ -1,0 +1,494 @@
+{% extends "base.html" %}
+
+{% block title %}Analytical Dataset Builder | epaData{% endblock %}
+{% block header %}Analytical Dataset Builder{% endblock %}
+{% block head %}
+    {% if analysis and analysis.chart_type == "map" and analysis.map_markers %}
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+{% set selected = analysis.selected if analysis else request.args %}
+<section class="hero">
+    <h1>Analytical Dataset Builder</h1>
+    <p>
+        Filter imported annual CAMPD unit records, review missing values and
+        summary statistics, then choose a visualization. This GET-based page
+        keeps selections in the URL so an analysis can be reproduced.
+    </p>
+
+    <form method="GET" action="{{ url_for('main.analysis_builder') }}">
+        <label for="year_from">Reporting year from</label>
+        <select id="year_from" name="year_from">
+            <option value="">All years</option>
+            {% for year in form_options.options.years %}
+                <option value="{{ year }}"
+                    {% if selected.get('year_from', '') == year|string %}selected{% endif %}>
+                    {{ year }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="year_to">Reporting year to</label>
+        <select id="year_to" name="year_to">
+            <option value="">All years</option>
+            {% for year in form_options.options.years %}
+                <option value="{{ year }}"
+                    {% if selected.get('year_to', '') == year|string %}selected{% endif %}>
+                    {{ year }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="state">State</label>
+        <select id="state" name="state">
+            <option value="">All states</option>
+            {% for state in form_options.options.states %}
+                <option value="{{ state }}"
+                    {% if selected.get('state', '') == state %}selected{% endif %}>
+                    {{ state }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="facility_id">Facility</label>
+        <select id="facility_id" name="facility_id">
+            <option value="">All facilities</option>
+            {% for facility in form_options.options.facilities %}
+                <option value="{{ facility.id }}"
+                    {% if selected.get('facility_id', '') == facility.id %}selected{% endif %}>
+                    {{ facility.name }} ({{ facility.id }}){% if facility.state %} — {{ facility.state }}{% endif %}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="unit_id">Generating unit</label>
+        <select id="unit_id" name="unit_id">
+            <option value="">All units</option>
+            {% for unit in form_options.options.units %}
+                <option value="{{ unit.id }}"
+                    {% if selected.get('unit_id', '') == unit.id|string %}selected{% endif %}>
+                    {{ unit.facility_name }} — {{ unit.unit_id }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="fuel">Primary fuel</label>
+        <select id="fuel" name="fuel">
+            <option value="">All fuels</option>
+            {% for fuel in form_options.options.fuels %}
+                <option value="{{ fuel }}"
+                    {% if selected.get('fuel', '') == fuel %}selected{% endif %}>
+                    {{ fuel }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="unit_type">Unit type</label>
+        <select id="unit_type" name="unit_type">
+            <option value="">All unit types</option>
+            {% for unit_type in form_options.options.unit_types %}
+                <option value="{{ unit_type }}"
+                    {% if selected.get('unit_type', '') == unit_type %}selected{% endif %}>
+                    {{ unit_type }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="control">Control technology (contains)</label>
+        <input id="control" name="control" type="text"
+            value="{{ selected.get('control', '') }}">
+
+        <label for="program_code">Emissions program (contains)</label>
+        <input id="program_code" name="program_code" type="text"
+            value="{{ selected.get('program_code', '') }}">
+
+        <label for="min_operating_time">Minimum operating time (hours)</label>
+        <input id="min_operating_time" name="min_operating_time" type="number"
+            step="any"
+            value="{{ selected.get('min_operating_time', '') }}">
+
+        <label for="min_gross_load">Minimum gross load (MWh)</label>
+        <input id="min_gross_load" name="min_gross_load" type="number"
+            step="any"
+            value="{{ selected.get('min_gross_load', '') }}">
+
+        <label for="percentiles">Additional percentiles (comma-separated)</label>
+        <input id="percentiles" name="percentiles" type="text"
+            placeholder="e.g. 10, 90"
+            value="{{ selected.get('percentiles', '') }}">
+
+        <label for="variable">Measure</label>
+        <select id="variable" name="variable">
+            {% for variable in form_options.variables %}
+                <option value="{{ variable.key }}"
+                    {% if selected.get('variable', 'co2_mass') == variable.key %}selected{% endif %}>
+                    {{ variable.label }} ({{ variable.units }})
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="group_by">Group results by</label>
+        <select id="group_by" name="group_by">
+            <option value="">All records</option>
+            {% for group in form_options.groups %}
+                <option value="{{ group.key }}"
+                    {% if selected.get('group_by', 'year') == group.key %}selected{% endif %}>
+                    {{ group.label }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="aggregation">Chart aggregation</label>
+        <select id="aggregation" name="aggregation">
+            <option value="mean"
+                {% if selected.get('aggregation', 'mean') == "mean" %}selected{% endif %}>
+                Mean
+            </option>
+            <option value="sum"
+                {% if selected.get('aggregation', 'mean') == "sum" %}selected{% endif %}>
+                Total (raw measurements only)
+            </option>
+        </select>
+
+        <label for="chart">Visualization</label>
+        <select id="chart" name="chart">
+            {% for chart in form_options.chart_types %}
+                <option value="{{ chart.key }}"
+                    {% if selected.get('chart', 'bar') == chart.key %}selected{% endif %}>
+                    {{ chart.label }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <button class="button calculation-submit" type="submit">
+            Build Analysis
+        </button>
+    </form>
+
+    {% if analysis_error %}
+        <p class="error" role="alert">{{ analysis_error }}</p>
+    {% elif analysis %}
+        <h2>Selected dataset</h2>
+        <p>
+            {{ analysis.summary.records }} records,
+            {{ analysis.summary.facilities }} facilities,
+            {{ analysis.summary.units }} units, and
+            {{ analysis.summary.years }} reporting years.
+        </p>
+
+        <h3>Variables available for analysis</h3>
+        <p>{{ analysis.available_fields | join(", ") }}</p>
+
+        <h3>Missing-value summary</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr><th>Variable</th><th>Missing</th><th>Selected records</th></tr>
+                </thead>
+                <tbody>
+                    {% for item in analysis.missing_summary %}
+                        <tr>
+                            <td>{{ item.label }} ({{ item.units }})</td>
+                            <td>{{ item.missing }}</td>
+                            <td>{{ item.count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <h3>Descriptive statistics: {{ analysis.variable_label }} ({{ analysis.units }})</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Group</th><th>Count</th><th>Missing</th><th>Minimum</th>
+                        <th>Maximum</th><th>Mean</th><th>Median</th>
+                        <th>Sample standard deviation</th><th>Q1</th><th>Q3</th><th>IQR</th>
+                        {% for percentile in analysis.percentile_values %}
+                            <th>{{ percentile }}th percentile</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in analysis.stats %}
+                        <tr>
+                            <td>{{ row.group }}</td><td>{{ row.count }}</td>
+                            <td>{{ row.missing_count }}</td>
+                            <td>{{ row.minimum if row.minimum is not none else "—" }}</td>
+                            <td>{{ row.maximum if row.maximum is not none else "—" }}</td>
+                            <td>{{ row.mean if row.mean is not none else "—" }}</td>
+                            <td>{{ row.median if row.median is not none else "—" }}</td>
+                            <td>{{ row.standard_deviation if row.standard_deviation is not none else "—" }}</td>
+                            <td>{{ row.q1 if row.q1 is not none else "—" }}</td>
+                            <td>{{ row.q3 if row.q3 is not none else "—" }}</td>
+                            <td>{{ row.iqr if row.iqr is not none else "—" }}</td>
+                            {% for value in row.percentiles.values() %}
+                                <td>{{ value if value is not none else "—" }}</td>
+                            {% endfor %}
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="{{ 11 + analysis.percentile_values|length }}">No records match these filters.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <p>
+            CO2, SO2, and NOx intensities and heat rate are undefined when gross
+            load is missing or zero. Operating-hours share is operating time
+            divided by the calendar year's hours; it is not capacity factor.
+            Year-over-year changes compare a unit with its prior-year record;
+            percentage change is left undefined when the prior value is zero.
+        </p>
+
+        <h3>{{ analysis.chart_types | selectattr('key', 'equalto', analysis.chart_type) | map(attribute='label') | first }}</h3>
+        {% if analysis.chart_type in ("bar", "line", "histogram", "scatter", "ranking") %}
+            <div style="position: relative; width: 100%; max-width: 1100px; height: 430px; margin: 24px auto;">
+                <canvas id="analysisChart" aria-label="{{ analysis.variable_label }} {{ analysis.chart_type }} chart"></canvas>
+            </div>
+            <button class="button" type="button" id="downloadChart">
+                Download chart image
+            </button>
+        {% elif analysis.chart_type == "box" %}
+            <p>Whiskers show the minimum and maximum, the box spans Q1–Q3, and the vertical line marks the median.</p>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>Group</th><th>Distribution (min, Q1, median, Q3, max)</th></tr></thead>
+                    <tbody>
+                        {% for row in analysis.stats %}
+                            <tr>
+                                <td>{{ row.group }}</td>
+                                <td>
+                                    {% if row.plot %}
+                                        <div style="position:relative;height:22px;min-width:260px;">
+                                            <span style="position:absolute;left:{{ row.plot.minimum }}%;width:{{ row.plot.maximum - row.plot.minimum }}%;top:10px;border-top:2px solid #251101;"></span>
+                                            <span style="position:absolute;left:{{ row.plot.q1 }}%;width:{{ row.plot.q3 - row.plot.q1 }}%;top:3px;height:15px;background:#5688c7;border:1px solid #251101;"></span>
+                                            <span style="position:absolute;left:{{ row.plot.median }}%;top:1px;height:19px;border-left:2px solid #251101;"></span>
+                                        </div>
+                                        {{ row.minimum }} · {{ row.q1 }} · {{ row.median }} · {{ row.q3 }} · {{ row.maximum }}
+                                    {% else %}No numeric measurements{% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% elif analysis.chart_type == "heatmap" %}
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr><th>Variable</th>{% for label in analysis.correlation.labels %}<th>{{ label }}</th>{% endfor %}</tr>
+                    </thead>
+                    <tbody>
+                        {% for row in analysis.correlation.rows %}
+                            <tr>
+                                <th>{{ row.label }}</th>
+                                {% for cell in row.cells %}
+                                    <td style="{% if cell.color %}background-color:{{ cell.color }};{% endif %}">
+                                        {{ "%.3f"|format(cell.value) if cell.value is not none else "—" }}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p>Correlations are descriptive associations and do not establish causation.</p>
+            <p>Positive correlations are shaded blue; negative correlations are shaded brown. Color intensity indicates magnitude.</p>
+        {% elif analysis.chart_type == "map" %}
+            {% if analysis.map_markers %}
+                <div id="facilityMap" style="height:500px;max-width:1100px;margin:20px auto;"></div>
+                <p>Map markers identify facilities; select a marker for its selected measurement and reporting year.</p>
+            {% else %}
+                <p>No matched facility coordinates are available for this selection.</p>
+            {% endif %}
+        {% endif %}
+
+        <h3>Rankings</h3>
+        <div class="table-container">
+            <table>
+                <thead><tr><th>Rank</th><th>Group</th><th>{{ analysis.aggregation_label }} ({{ analysis.units }})</th><th>Records</th></tr></thead>
+                <tbody>
+                    {% for row in analysis.rankings %}
+                        <tr><td>{{ loop.index }}</td><td>{{ row.group }}</td><td>{{ row.value }}</td><td>{{ row.count }}</td></tr>
+                    {% else %}
+                        <tr><td colspan="4">No numeric values are available for ranking.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <form method="GET" action="{{ url_for('main.analysis_download') }}">
+            {% for key, value in request.args.items() %}
+                <input type="hidden" name="{{ key }}" value="{{ value }}">
+            {% endfor %}
+            <button class="button calculation-submit" type="submit">
+                Download selected records as CSV
+            </button>
+        </form>
+
+        <h3>Selected records</h3>
+        <p>
+            Showing up to {{ analysis.preview_rows|length }} of
+            {{ analysis.summary.records }} selected records. The CSV download
+            includes all matching records.
+        </p>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>State</th><th>Facility</th><th>Unit</th><th>Year</th>
+                        <th>Fuel</th><th>Gross load (MWh)</th><th>CO2 (short tons)</th>
+                        <th>CO2 intensity</th><th>SO2 intensity</th><th>NOx intensity</th>
+                        <th>Heat rate</th><th>{{ analysis.variable_label }}</th>
+                        <th>Year-over-year change</th><th>Year-over-year change (%)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in analysis.preview_rows %}
+                        <tr>
+                            <td>{{ row.state }}</td><td>{{ row.facility_name }}</td>
+                            <td>{{ row.unit_id }}</td><td>{{ row.year }}</td>
+                            <td>{{ row.fuel or "—" }}</td>
+                            <td>{{ row.gross_load if row.gross_load is not none else "—" }}</td>
+                            <td>{{ row.co2_mass if row.co2_mass is not none else "—" }}</td>
+                            <td>{{ row.co2_intensity if row.co2_intensity is not none else "—" }}</td>
+                            <td>{{ row.so2_intensity if row.so2_intensity is not none else "—" }}</td>
+                            <td>{{ row.nox_intensity if row.nox_intensity is not none else "—" }}</td>
+                            <td>{{ row.heat_rate if row.heat_rate is not none else "—" }}</td>
+                            <td>{{ row[analysis.selected.variable] if row[analysis.selected.variable] is not none else "—" }}</td>
+                            <td>{{ row.year_over_year_absolute if row.year_over_year_absolute is not none else "—" }}</td>
+                            <td>{{ row.year_over_year_percent if row.year_over_year_percent is not none else "—" }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</section>
+
+{% if analysis and analysis.chart_type in ("bar", "line", "histogram", "scatter", "ranking") %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const chartType = {{ analysis.chart_type | tojson }};
+        const chartRows = {{ analysis.chart_data | tojson }};
+        const rankingRows = {{ analysis.rankings | tojson }};
+        const histogramRows = {{ analysis.histogram | tojson }};
+        const scatterRows = {{ analysis.scatter | tojson }};
+        const rankingChartRows = rankingRows.length <= 20
+            ? rankingRows
+            : [...rankingRows.slice(0, 10), ...rankingRows.slice(-10)];
+        const chartLabels = chartType === "histogram"
+            ? histogramRows.map(row => row.label)
+            : (chartType === "ranking"
+                ? rankingChartRows.map(row => row.group)
+                : chartRows.map(row => row.group));
+        const chartValues = chartType === "histogram"
+            ? histogramRows.map(row => row.count)
+            : (chartType === "ranking"
+                ? rankingChartRows.map(row => row.value)
+                : chartRows.map(row => row.value));
+        const config = {
+            type: chartType === "line" ? "line"
+                : chartType === "scatter" ? "scatter" : "bar",
+            data: {
+                labels: chartType === "scatter" ? undefined : chartLabels,
+                datasets: [{
+                    label: chartType === "histogram"
+                        ? "Record count"
+                        : {{ (analysis.aggregation_label ~ " " ~ analysis.variable_label ~ " (" ~ analysis.units ~ ")") | tojson }},
+                    data: chartType === "scatter"
+                        ? scatterRows.map(row => ({ x: row.x, y: row.y, label: row.label }))
+                        : chartValues,
+                    backgroundColor: "rgba(45, 113, 189, 0.65)",
+                    borderColor: "rgba(37, 17, 1, 0.9)",
+                    borderWidth: 1,
+                    showLine: chartType === "scatter" ? false : undefined
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true },
+                    title: {
+                        display: true,
+                        text: chartType === "histogram"
+                            ? {{ ("Distribution of " ~ analysis.variable_label) | tojson }}
+                            : (chartType === "scatter"
+                                ? {{ (analysis.variable_label ~ " versus gross load") | tojson }}
+                                : (chartType === "ranking"
+                                    ? {{ ("High and low " ~ analysis.variable_label ~ " rankings") | tojson }}
+                                    : {{ (analysis.variable_label ~ " by " ~ analysis.group_label) | tojson }}))
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: context => {
+                                const point = context.raw;
+                                if (chartType === "scatter") {
+                                    return `${point.label}: ${point.y}`;
+                                }
+                                return `${context.dataset.label}: ${context.formattedValue}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: chartType === "scatter"
+                                ? "Gross load (MWh)"
+                                : chartType === "histogram"
+                                    ? {{ (analysis.variable_label ~ " (" ~ analysis.units ~ ")") | tojson }}
+                                    : {{ analysis.group_label | tojson }}
+                        }
+                    },
+                    y: {
+                        beginAtZero: chartType !== "scatter",
+                        title: {
+                            display: true,
+                            text: chartType === "histogram"
+                                ? "Records"
+                                : {{ (analysis.variable_label ~ " (" ~ analysis.units ~ ")") | tojson }}
+                        }
+                    }
+                }
+            }
+        };
+        const analysisChart = new Chart(
+            document.getElementById("analysisChart"),
+            config
+        );
+        document.getElementById("downloadChart").addEventListener("click", () => {
+            const link = document.createElement("a");
+            link.href = analysisChart.toBase64Image();
+            link.download = "analysis-chart.png";
+            link.click();
+        });
+    </script>
+{% endif %}
+
+{% if analysis and analysis.chart_type == "map" and analysis.map_markers %}
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const mapMarkers = {{ analysis.map_markers | tojson }};
+        const facilityMap = L.map("facilityMap");
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "&copy; OpenStreetMap contributors"
+        }).addTo(facilityMap);
+        const markerBounds = [];
+        mapMarkers.forEach(marker => {
+            const point = [marker.latitude, marker.longitude];
+            markerBounds.push(point);
+            const popup = document.createElement("span");
+            popup.textContent = marker.label;
+            L.marker(point).addTo(facilityMap).bindPopup(popup);
+        });
+        facilityMap.fitBounds(markerBounds, { padding: [20, 20] });
+    </script>
+{% endif %}
+{% endblock %}

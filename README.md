@@ -115,6 +115,52 @@ The Data Explorer queries **local database records**. Live CAMPD searches are se
 
 Advanced Search uses the `facilities_data` table to match fuel and unit filters to facility IDs, then filters live annual CAMPD results by those facilities. CAMPD annual emissions are facility-level aggregates; matching a unit or fuel does not split those emissions by unit or fuel.
 
+## Phase 2 analysis
+
+The **Analysis Builder** is available from the sidebar or at
+`/analysis-builder`. It analyzes imported normalized annual unit records from
+`annual_records`, joined to the related `units` and `facilities` tables. Its
+GET filters are retained in the URL for reproducibility and include reporting
+years, state, facility, unit, primary fuel, unit type, control technology,
+emissions program, minimum operating time, and minimum gross load.
+
+The builder reports record/facility/unit/year counts, missing values, and
+grouped descriptive statistics. It supports optional percentiles and derived
+CO2/SO2/NOx intensities, heat rate, year-over-year changes, and operating-hours
+share. Ratios with missing or zero gross load remain undefined. Operating-hours
+share is operating time divided by the calendar year's hours; it is not
+capacity factor.
+
+Choose a bar chart, line chart, histogram, scatter plot, box plot, correlation
+heat map, ranking, or facility map. Chart images can be downloaded for
+Chart.js visualizations and selected records can be downloaded as CSV.
+Facility maps require latitude and longitude data and network access to the
+OpenStreetMap tiles. The builder previews up to 200 rows while its CSV includes
+all filtered records.
+
+The **Comparisons** page provides grouped summary statistics, rankings,
+reference-group absolute/percentage differences, normalized indicators, and
+bar or line charts. Its conclusions are descriptive; inferential tests such as
+confidence intervals, two-sample tests, ANOVA, and nonparametric tests are not
+implemented.
+
+The **Factored Calculations** page calculates potential TRACI 2.2 impacts from
+normalized annual CAMPD unit records. It matches the exact pollutant names
+`CARBON DIOXIDE`, `SULFUR DIOXIDE`, and `NITROGEN OXIDES` in
+`CAMPD_Data_NEW/traci_2_2.csv`, uses air-emission factors, converts short tons
+to kilograms, and keeps each impact category in its own equivalent unit.
+Normalized records can be grouped by state, facility, unit, or primary fuel
+and year. If only `calc_data_annual` is populated, the calculator supports
+state-level results. Impact per MWh is omitted when gross load is missing or
+zero. These are
+potential-impact indicators, not predictions of local exposure, illness, or
+proven environmental damage.
+
+The analysis builder and facility/unit TRACI calculations require populated
+`annual_records`, `units`, and `facilities` tables. State-level TRACI
+calculations can use `calc_data_annual`. Live CAMPD API responses are not
+automatically saved to those tables.
+
 ## Where the data comes from
 
 epaData uses:
@@ -144,6 +190,8 @@ Live CAMPD responses are not automatically imported into the local emissions tab
 * Live CAMPD results are not automatically saved as local emissions records.
 * Data coverage depends on the imported files and available EPA endpoints.
 * Downloads currently support CSV; invalid-upload rows do not have a downloadable report.
+* Optional inferential comparison methods are not currently available.
+* Facility maps require populated facility coordinates and access to map tiles.
 
 ## Live CAMPD searches
 
