@@ -35,6 +35,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     generateButton.addEventListener("click", generateComparison);
+    generateComparison();
 
     async function generateComparison() {
 
