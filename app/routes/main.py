@@ -1529,13 +1529,14 @@ def results():
 def basic_search():
     """Basic and description-based EPA search."""
     query_text = request.args.get("query", "").strip()
+    edit_mode = request.args.get("edit") == "1"
     interpreted, residual = interpret_basic_query(query_text)
 
     results = []
     basic_error = None
     basic_notice = None
 
-    if query_text:
+    if query_text and not edit_mode:
         try:
             state_codes = [code for code, _ in STATE_OPTIONS]
 
@@ -1645,7 +1646,7 @@ def basic_search():
             basic_error = str(exc)
             results = []
 
-    if query_text and basic_error is None:
+    if query_text and not edit_mode and basic_error is None:
         return render_template(
             "results.html",
             result_kind="records",
@@ -1654,11 +1655,16 @@ def basic_search():
             query=query_text,
             results=results,
             notice=basic_notice,
-            back_url=url_for("main.basic_search", query=query_text),
+            back_url=url_for(
+                "main.basic_search",
+                query=query_text,
+                edit=1,
+            ),
         )
 
     return render_template(
         "basic_search.html",
+        back_url=url_for("main.search"),
         query=query_text,
         results=results,
         search_performed=bool(query_text),
@@ -1757,6 +1763,7 @@ def campd_search():
 
     return render_template(
         "campd_search.html",
+        back_url=url_for("main.search"),
         campd_datasets=campd_datasets,
         campd_states=STATE_OPTIONS,
         campd_emission_datasets=EMISSION_DATASETS,
@@ -1795,6 +1802,7 @@ def advanced_search():
         "state", "year_from", "year_to", "fuel",
         "facility_id", "unit_id", "value",
     ))
+    search_requested = performed and request.args.get("edit") != "1"
 
     results = []
     error = None
@@ -1812,7 +1820,7 @@ def advanced_search():
 
     operators = {"=", ">", ">=", "<", "<=", "between"}
 
-    if performed:
+    if search_requested:
         try:
             state_codes = [code for code, _ in STATE_OPTIONS]
 
@@ -1978,7 +1986,7 @@ def advanced_search():
                 "Please check the year and measurement values."
             )
 
-    if performed and error is None:
+    if search_requested and error is None:
         return render_template(
             "results.html",
             result_kind="records",
@@ -1988,18 +1996,22 @@ def advanced_search():
             notice=notice,
             back_url=url_for(
                 "main.advanced_search",
-                **request.args.to_dict(),
+                **{
+                    **request.args.to_dict(),
+                    "edit": "1",
+                },
             ),
         )
 
     return render_template(
         "advanced_search.html",
+        back_url=url_for("main.search"),
         query="",
         results=[],
         search_performed=False,
         search_mode="advanced",
         advanced_results=results,
-        advanced_performed=performed,
+        advanced_performed=search_requested,
         advanced_error=error,
         advanced_notice=notice,
         advanced_states=sorted(STATE_NAMES.items()),

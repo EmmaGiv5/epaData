@@ -9,7 +9,12 @@ Results | epaData
 {% block content %}
 
 <section class="hero">
+    <div class="back-navigation">
+        <a class="button" href="{{ back_url }}"> ←  Back To Search</a>
+    </div>
+
     <h1>{{ result_title }}</h1>
+    <br>
 
     {% if result_source %}
         <p>Source: {{ result_source }}</p>
@@ -166,8 +171,6 @@ Results | epaData
             <p>No records match the selected filters.</p>
         {% endif %}
     {% endif %}
-
-    <p><a href="{{ back_url }}">← Back to search</a></p>
 </section>
 
 {% endblock %}

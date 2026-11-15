@@ -49,7 +49,14 @@ Home | epaData
 <section class="hero">
     <h2>System Functions</h2>
 
-    <br><br>
+    <p> All functions have the option to be visualized to examine the data 
+    in a variety of ways. On the visualization page, you can also choose to 
+    compare the data across different groups, such as years, states, or facilities.
+    Additionally, you can generate a predictive model based on the data to forecast 
+    future trends and outcomes, then see a sensitivity report on the given predictions. 
+    </p>    
+
+    <br>
 
     <div class="buttons"> 
         <a class="button" href="{{ url_for('main.search') }}"> 
@@ -116,6 +123,27 @@ Home | epaData
                 Download datasets and search results
                 as CSV files.
             </p>
+        </div>
+
+        <div class="feature-card">
+            <h3>Data Calculations Functions</h3>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>Descriptive Statistic Calculations</h3>
+                    <p>Calculate mean, median, mode, and other descriptive statistics.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3>Factored Calculations</h3>
+                    <p>Calculate things with a factor added in, such as TRACI 2.2 impacts from annual emissions data.</p>
+                </div>
+
+                <div class="feature-card">
+                    <h3>Comparisons</h3>
+                    <p>Directly compare and contrast numeric data fields across multiple years, states, or facilities.</p>
+                </div>
+            </div>
         </div>
     </div> 
 </section>

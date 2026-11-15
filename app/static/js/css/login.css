@@ -202,20 +202,20 @@ body {
 
 .login-btn {
     width: 100%;
-    min-height: 50px;
+    min-height: 42px;
     margin-top: 3px;
-    padding: 13px 18px;
+    padding: 8px 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 12px;
-    border: none;
+    border: 1px solid transparent;
     border-radius: 8px;
-    background: var(--blue);
-    color: var(--white);
+    background: var(--brown);
+    color: var(--blue);
     font: inherit;
-    font-size: 16px;
-    font-weight: 700;
+    font-size: 15px;
+    font-weight: 600;
     cursor: pointer;
     transition: background 0.2s, transform 0.2s;
 }
@@ -226,7 +226,8 @@ body {
 }
 
 .login-btn:hover {
-    background: var(--blue-hover);
+    background: #170b01;
+    color: var(--blue);
     transform: translateY(-1px);
 }
 

@@ -87,7 +87,9 @@ Descriptive Statistics | epaData
             placeholder="e.g. 10, 90"
         >
 
-        <button type="submit">Calculate Statistics</button>
+        <button class="button calculation-submit" type="submit">
+            Calculate Statistics
+        </button>
     </form>
 
     {% if stats_error %}
@@ -138,7 +140,7 @@ Descriptive Statistics | epaData
                 </tbody>
             </table>
         </div>
-    {% elif request.args and not stats_error %}
+    {% elif request.args %}
         <p>No statistics were returned for the selected filters.</p>
     {% endif %}
 </section>

@@ -306,6 +306,12 @@ p {
     margin: 25px auto;
 }
 
+.back-navigation {
+    display: flex;
+    justify-content: flex-start;
+    margin-bottom: 20px;
+}
+
 .button {
     display: inline-flex;
     align-items: center;
@@ -340,6 +346,28 @@ p {
 
 .button:active {
     transform: translateY(0);
+}
+
+.calculation-submit,
+form button:not([type="button"]):not([type="reset"]):not(.login-btn),
+form input[type="submit"] {
+    display: block;
+    margin: 18px auto 0;
+    padding: 8px 14px;
+    background-color: var(--brown);
+    color: var(--blue);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.calculation-submit:hover,
+form button:not([type="button"]):not([type="reset"]):not(.login-btn):hover,
+form input[type="submit"]:hover {
+    background-color: #170b01;
+    color: var(--blue);
 }
 
 .button:focus-visible,

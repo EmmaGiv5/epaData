@@ -9,6 +9,10 @@ Advanced Search | epaData
 {% block content %}
 
 <section class="hero">
+    <div class="back-navigation">
+        <a class="button" href="{{ back_url }}"> ←  Back To Search</a>
+    </div>
+
     <h1>Advanced Search</h1>
 
     <p>
@@ -130,10 +134,6 @@ Advanced Search | epaData
 
         <button type="submit">Apply Advanced Filters</button>
     </form>
-
-    <p>
-        <a href="{{ url_for('main.search') }}">← Back to Search Options</a>
-    </p>
 
     {% if advanced_error %}
         <p class="error" role="alert">{{ advanced_error }}</p>

@@ -9,6 +9,10 @@ Basic Search | epaData
 {% block content %}
 
 <section class="hero">
+    <div class="back-navigation">
+        <a class="button" href="{{ back_url }}"> ←  Back To Search</a>
+    </div>
+
     <h1>Basic &amp; Description-Based Search</h1>
 
     <p>
@@ -30,10 +34,6 @@ Basic Search | epaData
 
         <button type="submit">Search Database</button>
     </form>
-
-    <p>
-        <a href="{{ url_for('main.search') }}">← Back to Search Options</a>
-    </p>
 
     {% if basic_error %}
         <p class="error" role="alert">{{ basic_error }}</p>
