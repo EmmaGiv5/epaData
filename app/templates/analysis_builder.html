@@ -11,6 +11,9 @@
 {% block content %}
 {% set selected = analysis.selected if analysis else request.args %}
 <section class="hero">
+    <div class="back-navigation">
+        <a class="button" href="{{ url_for('main.calculate') }}"> ←  Back To Calculations</a>
+    </div>
     <h1>Analytical Dataset Builder</h1>
     <p>
         Filter imported annual CAMPD unit records, review missing values and

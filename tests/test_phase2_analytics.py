@@ -192,6 +192,30 @@ class PhaseTwoAnalyticsTests(unittest.TestCase):
         self.assertIn("Analysis Builder", html)
         self.assertIn("2024", html)
 
+    def test_calculation_pages_link_back_to_calculations_menu(self):
+        db.session.execute(text(
+            'CREATE TABLE calc_data_annual ('
+            '"State" TEXT, "Year" INTEGER, '
+            '"Gross Load (MWh)" REAL, "CO2 Mass (short tons)" REAL, '
+            '"SO2 Mass (short tons)" REAL, "NOx Mass (short tons)" REAL, '
+            '"Heat Input (mmBtu)" REAL)'
+        ))
+        db.session.commit()
+        client = self.app.test_client()
+        for path in (
+            "/analysis-builder",
+            "/descriptive-stats",
+            "/factored-calculations",
+            "/comparisons",
+        ):
+            with self.subTest(path=path):
+                response = client.get(path)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(
+                    b'href="/calculate"> \xe2\x86\x90  Back To Calculations',
+                    response.data,
+                )
+
     def test_builder_renders_each_visualization_mode(self):
         client = self.app.test_client()
         for chart_type in (

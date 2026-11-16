@@ -1,165 +1,272 @@
 {% extends "base.html" %}
 
 {% block title %}Factored Calculations | epaData{% endblock %}
+
 {% block header %}Factored Calculations{% endblock %}
 
 {% block content %}
+
 <section class="hero">
-    <h1>TRACI 2.2 Impact Assessment</h1>
+    <div class="back-navigation">
+        <a class="button" href="{{ url_for('main.calculate') }}"> ←  Back To Calculations</a>
+    </div>
+
+    <h1>TRACI 2.2 Environmental Impact Calculations</h1>
+
     <p>
-        Select annual CAMPD records and a reporting level. Emissions in short
-        tons are converted to kilograms before applying the matched TRACI 2.2
-        air-emission characterization factors.
+        Calculate environmental impacts using EPA emissions data
+        and TRACI 2.2 characterization factors.
     </p>
 
-    <form method="POST" action="{{ url_for('main.factored_calculations') }}">
-        <label for="state">State</label>
-        <select id="state" name="state">
-            <option value="">All states</option>
-            {% for state in states %}
-                <option value="{{ state }}"
-                    {% if calc_state == state %}selected{% endif %}>
-                    {{ state }}
-                </option>
-            {% endfor %}
-        </select>
+    <!-- FILTERS -->
 
-        <label for="year_from">Reporting year from</label>
-        <select id="year_from" name="year_from">
-            <option value="">All years</option>
-            {% for year in years %}
-                <option value="{{ year }}"
-                    {% if calc_year_from == year|string %}selected{% endif %}>
-                    {{ year }}
-                </option>
-            {% endfor %}
-        </select>
+    <div class="card mb-4">
+        <div class="card-body">
 
-        <label for="year_to">Reporting year to</label>
-        <select id="year_to" name="year_to">
-            <option value="">All years</option>
-            {% for year in years %}
-                <option value="{{ year }}"
-                    {% if calc_year_to == year|string %}selected{% endif %}>
-                    {{ year }}
-                </option>
-            {% endfor %}
-        </select>
+            <form method="POST"
+                  action="{{ url_for('main.factored_calculations') }}">
 
-        {% if has_unit_records %}
-            <label for="facility_id">Facility</label>
-            <select id="facility_id" name="facility_id">
-                <option value="">All facilities</option>
-                {% for facility in facilities %}
-                    <option value="{{ facility.id }}"
-                        {% if calc_facility_id == facility.id %}selected{% endif %}>
-                        {{ facility.name }} ({{ facility.id }}){% if facility.state %} — {{ facility.state }}{% endif %}
-                    </option>
-                {% endfor %}
-            </select>
+                <div class="row g-3">
 
-            <label for="unit_id">Generating unit</label>
-            <select id="unit_id" name="unit_id">
-                <option value="">All units</option>
-                {% for unit in units %}
-                    <option value="{{ unit.id }}"
-                        {% if calc_unit_id == unit.id|string %}selected{% endif %}>
-                        {{ unit.label }}
-                    </option>
-                {% endfor %}
-            </select>
+                    <div class="col-md-6">
+                        <label for="state">State</label>
 
-            <label for="fuel">Primary fuel</label>
-            <select id="fuel" name="fuel">
-                <option value="">All fuels</option>
-                {% for fuel in fuels %}
-                    <option value="{{ fuel }}"
-                        {% if calc_fuel == fuel %}selected{% endif %}>
-                        {{ fuel }}
-                    </option>
-                {% endfor %}
-            </select>
-        {% else %}
-            <p>
-                Only state-level impact calculations are available because
-                normalized facility and unit records are not populated.
-            </p>
-        {% endif %}
+                        <select name="state" id="state"
+                                class="form-select">
 
-        <label for="group_by">Show results by</label>
-        <select id="group_by" name="group_by">
-            <option value="state" {% if calc_group_by == "state" %}selected{% endif %}>State</option>
-            {% if has_unit_records %}
-                <option value="facility" {% if calc_group_by == "facility" %}selected{% endif %}>Facility</option>
-                <option value="unit" {% if calc_group_by == "unit" %}selected{% endif %}>Generating unit</option>
-                <option value="fuel" {% if calc_group_by == "fuel" %}selected{% endif %}>Primary fuel</option>
-            {% endif %}
-        </select>
+                            <option value="">All States</option>
 
-        <button class="button calculation-submit" type="submit">
-            Calculate Potential Impacts
-        </button>
-    </form>
+                            {% for state in states %}
+                            <option value="{{ state }}"
+                                {% if calc_state == state %}selected{% endif %}>
+                                {{ state }}
+                            </option>
+                            {% endfor %}
+
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="year">Year</label>
+
+                        <select name="year" id="year"
+                                class="form-select">
+
+                            <option value="">All Years</option>
+
+                            {% for year in years %}
+                            <option value="{{ year }}"
+                                {% if calc_year == year|string %}selected{% endif %}>
+                                {{ year }}
+                            </option>
+                            {% endfor %}
+
+                        </select>
+                    </div>
+
+                </div>
+
+                <button type="submit"
+                        class="btn btn-primary mt-3">
+                    Calculate Environmental Impacts
+                </button>
+
+            </form>
+
+        </div>
+    </div>
 
     {% if calc_error %}
-        <p class="error" role="alert">{{ calc_error }}</p>
-    {% elif calc_submitted and calc_results %}
-        <h2>Potential impact results</h2>
+        <p class="error">{{ calc_error }}</p>
+    {% endif %}
+
+    <!-- RESULTS -->
+
+    {% if calc_submitted and calc_results %}
+
+        <h2>TRACI 2.2 Results</h2>
+
         <p>
-            Each row represents one impact category and reporting year.
-            Contributions from different pollutants are summed only within
-            that category. These results are screening indicators, not
-            measurements of exposure, illness, or proven environmental damage.
+            Emissions were converted from short tons to kilograms
+            before applying characterization factors.
         </p>
-        <div class="table-container">
+
+        <div style="overflow-x:auto;">
+
             <table>
                 <thead>
                     <tr>
-                        <th>State</th><th>Selected group</th><th>Year</th>
-                        <th>Impact category</th><th>Potential impact</th>
-                        <th>TRACI equivalent unit</th><th>Impact per MWh</th>
-                        <th>TRACI version</th><th>Factors used</th>
+                        <th>State</th>
+                        <th>Year</th>
+                        <th>Impact Category</th>
+                        <th>Calculated Impact</th>
+                        <th>Unit</th>
+                        <th>Substances</th>
                     </tr>
                 </thead>
+
                 <tbody>
+
                     {% for result in calc_results %}
-                        <tr>
-                            <td>{{ result.state or "—" }}</td>
-                            <td>{{ result.group }}</td>
-                            <td>{{ result.year }}</td>
-                            <td>{{ result.category }}</td>
-                            <td>{{ "%.6g"|format(result.value) }}</td>
-                            <td>{{ result.unit }}</td>
-                            <td>
-                                {% if result.intensity is not none %}
-                                    {{ "%.6g"|format(result.intensity) }} {{ result.unit }} / MWh
-                                {% else %}
-                                    —
-                                {% endif %}
-                            </td>
-                            <td>{{ result.version }}</td>
-                            <td>
-                                {% for factor in result.factors %}
-                                    {{ factor.substance }}:
-                                    {{ factor.mass_short_tons }} short tons ×
-                                    907.18474 kg/short ton ×
-                                    {{ factor.factor }}<br>
-                                {% endfor %}
-                            </td>
-                        </tr>
+
+                    <tr>
+                        <td>{{ result.state }}</td>
+                        <td>{{ result.year }}</td>
+                        <td>{{ result.category }}</td>
+                        <td>{{ "%.6g"|format(result.value) }}</td>
+                        <td>{{ result.unit }}</td>
+                        <td>{{ result.substances }}</td>
+                    </tr>
+
                     {% endfor %}
+
                 </tbody>
             </table>
+
         </div>
-    {% elif calc_submitted %}
-        <p>No emissions data with matching TRACI air-emission factors was found.</p>
+
+        <!-- GRAPH -->
+
+        <div class="card mt-4">
+
+            <div class="card-body">
+
+                <h2>Environmental Impact Visualization</h2>
+
+                <div style="height:400px;">
+                    <canvas id="factoredChart"></canvas>
+                </div>
+
+            </div>
+
+        </div>
+
+    {% elif calc_submitted and not calc_error %}
+
+        <p>No calculation results were found for these filters.</p>
+
     {% endif %}
 
-    <p>
-        Factors are matched by exact pollutant substance name in the bundled
-        TRACI 2.2 file. Missing emissions are omitted from their pollutant
-        contribution; impact intensity is undefined when gross load is
-        missing or zero.
-    </p>
 </section>
+
+{% if calc_submitted and calc_results %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script id="factored-data" type="application/json">
+    {{ calc_results | tojson }}
+</script>
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const dataElement = document.getElementById("factored-data");
+    const canvas = document.getElementById("factoredChart");
+
+    if (!dataElement || !canvas) {
+        console.error("Factored chart elements were not found.");
+        return;
+    }
+
+    const results = JSON.parse(dataElement.textContent);
+
+    if (!results.length) {
+        return;
+    }
+
+    const categories = [...new Set(
+        results.map(item => item.category)
+    )];
+
+    const years = [...new Set(
+        results.map(item => Number(item.year))
+    )].sort((a, b) => a - b);
+
+    const colors = [
+        "#2563eb",
+        "#dc2626",
+        "#16a34a",
+        "#9333ea",
+        "#ea580c",
+        "#0891b2",
+        "#be185d"
+    ];
+
+    const datasets = categories.map((category, index) => {
+
+        return {
+            label: category,
+
+            data: years.map(year => {
+
+                const matching = results.filter(item =>
+                    Number(item.year) === year &&
+                    item.category === category
+                );
+
+                return matching.length
+                    ? matching.reduce(
+                        (sum, item) => sum + Number(item.value),
+                        0
+                    )
+                    : null;
+            }),
+
+            backgroundColor: colors[index % colors.length],
+            borderColor: colors[index % colors.length],
+            borderWidth: 2
+        };
+
+    });
+
+    new Chart(canvas, {
+
+        type: "bar",
+
+        data: {
+            labels: years,
+            datasets: datasets
+        },
+
+        options: {
+
+            responsive: true,
+            maintainAspectRatio: false,
+
+            plugins: {
+                title: {
+                    display: true,
+                    text: "TRACI 2.2 Environmental Impacts"
+                },
+
+                legend: {
+                    display: true
+                }
+            },
+
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: "Calculated Environmental Impact"
+                    }
+                },
+
+                x: {
+                    title: {
+                        display: true,
+                        text: "Reporting Year"
+                    }
+                }
+            }
+        }
+    });
+});
+
+</script>
+
+{% endif %}
+
 {% endblock %}
