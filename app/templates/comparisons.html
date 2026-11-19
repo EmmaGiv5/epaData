@@ -9,6 +9,9 @@ Comparisons | epaData
 {% block content %}
 
 <section class="hero">
+    <div class="back-navigation">
+        <a class="button" href="{{ url_for('main.calculate') }}"> ←  Back To Calculations</a>
+    </div>
     <h1>Comparative Analysis</h1>
     <p>
         Compare all groups in one dataset using the same measurement and
@@ -186,6 +189,7 @@ Comparisons | epaData
 </section>
 
 {% if summaries %}
+{%include "_model_panel.html" %}
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         const comparisonRows = {{ summaries | tojson }};

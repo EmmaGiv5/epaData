@@ -11,14 +11,27 @@
 {% block content %}
 {% set selected = analysis.selected if analysis else request.args %}
 <section class="hero">
+    <div class="back-navigation">
+        <a class="button" href="{{ url_for('main.calculate') }}"> ←  Back To Calculations</a>
+    </div>
     <h1>Analytical Dataset Builder</h1>
     <p>
-        Filter imported annual CAMPD unit records, review missing values and
-        summary statistics, then choose a visualization. This GET-based page
-        keeps selections in the URL so an analysis can be reproduced.
+        Choose annual unit records or available state totals, review missing
+        values and summary statistics, then choose a visualization. Selections
+        are stored in the URL so an analysis can be reproduced.
     </p>
 
     <form method="GET" action="{{ url_for('main.analysis_builder') }}">
+        <label for="source">Annual dataset</label>
+        <select id="source" name="source">
+            {% for source in form_options.sources %}
+                <option value="{{ source.key }}"
+                    {% if selected.get('source', form_options.source_key) == source.key %}selected{% endif %}>
+                    {{ source.label }}
+                </option>
+            {% endfor %}
+        </select>
+
         <label for="year_from">Reporting year from</label>
         <select id="year_from" name="year_from">
             <option value="">All years</option>
@@ -52,62 +65,64 @@
             {% endfor %}
         </select>
 
-        <label for="facility_id">Facility</label>
-        <select id="facility_id" name="facility_id">
-            <option value="">All facilities</option>
-            {% for facility in form_options.options.facilities %}
-                <option value="{{ facility.id }}"
-                    {% if selected.get('facility_id', '') == facility.id %}selected{% endif %}>
-                    {{ facility.name }} ({{ facility.id }}){% if facility.state %} — {{ facility.state }}{% endif %}
-                </option>
-            {% endfor %}
-        </select>
+        {% if form_options.source_key == "unit_annual" %}
+            <label for="facility_id">Facility</label>
+            <select id="facility_id" name="facility_id">
+                <option value="">All facilities</option>
+                {% for facility in form_options.options.facilities %}
+                    <option value="{{ facility.id }}"
+                        {% if selected.get('facility_id', '') == facility.id %}selected{% endif %}>
+                        {{ facility.name }} ({{ facility.id }}){% if facility.state %} — {{ facility.state }}{% endif %}
+                    </option>
+                {% endfor %}
+            </select>
 
-        <label for="unit_id">Generating unit</label>
-        <select id="unit_id" name="unit_id">
-            <option value="">All units</option>
-            {% for unit in form_options.options.units %}
-                <option value="{{ unit.id }}"
-                    {% if selected.get('unit_id', '') == unit.id|string %}selected{% endif %}>
-                    {{ unit.facility_name }} — {{ unit.unit_id }}
-                </option>
-            {% endfor %}
-        </select>
+            <label for="unit_id">Generating unit</label>
+            <select id="unit_id" name="unit_id">
+                <option value="">All units</option>
+                {% for unit in form_options.options.units %}
+                    <option value="{{ unit.id }}"
+                        {% if selected.get('unit_id', '') == unit.id|string %}selected{% endif %}>
+                        {{ unit.facility_name }} — {{ unit.unit_id }}
+                    </option>
+                {% endfor %}
+            </select>
 
-        <label for="fuel">Primary fuel</label>
-        <select id="fuel" name="fuel">
-            <option value="">All fuels</option>
-            {% for fuel in form_options.options.fuels %}
-                <option value="{{ fuel }}"
-                    {% if selected.get('fuel', '') == fuel %}selected{% endif %}>
-                    {{ fuel }}
-                </option>
-            {% endfor %}
-        </select>
+            <label for="fuel">Primary fuel</label>
+            <select id="fuel" name="fuel">
+                <option value="">All fuels</option>
+                {% for fuel in form_options.options.fuels %}
+                    <option value="{{ fuel }}"
+                        {% if selected.get('fuel', '') == fuel %}selected{% endif %}>
+                        {{ fuel }}
+                    </option>
+                {% endfor %}
+            </select>
 
-        <label for="unit_type">Unit type</label>
-        <select id="unit_type" name="unit_type">
-            <option value="">All unit types</option>
-            {% for unit_type in form_options.options.unit_types %}
-                <option value="{{ unit_type }}"
-                    {% if selected.get('unit_type', '') == unit_type %}selected{% endif %}>
-                    {{ unit_type }}
-                </option>
-            {% endfor %}
-        </select>
+            <label for="unit_type">Unit type</label>
+            <select id="unit_type" name="unit_type">
+                <option value="">All unit types</option>
+                {% for unit_type in form_options.options.unit_types %}
+                    <option value="{{ unit_type }}"
+                        {% if selected.get('unit_type', '') == unit_type %}selected{% endif %}>
+                        {{ unit_type }}
+                    </option>
+                {% endfor %}
+            </select>
 
-        <label for="control">Control technology (contains)</label>
-        <input id="control" name="control" type="text"
-            value="{{ selected.get('control', '') }}">
+            <label for="control">Control technology (contains)</label>
+            <input id="control" name="control" type="text"
+                value="{{ selected.get('control', '') }}">
 
-        <label for="program_code">Emissions program (contains)</label>
-        <input id="program_code" name="program_code" type="text"
-            value="{{ selected.get('program_code', '') }}">
+            <label for="program_code">Emissions program (contains)</label>
+            <input id="program_code" name="program_code" type="text"
+                value="{{ selected.get('program_code', '') }}">
 
-        <label for="min_operating_time">Minimum operating time (hours)</label>
-        <input id="min_operating_time" name="min_operating_time" type="number"
-            step="any"
-            value="{{ selected.get('min_operating_time', '') }}">
+            <label for="min_operating_time">Minimum operating time (hours)</label>
+            <input id="min_operating_time" name="min_operating_time" type="number"
+                step="any"
+                value="{{ selected.get('min_operating_time', '') }}">
+        {% endif %}
 
         <label for="min_gross_load">Minimum gross load (MWh)</label>
         <input id="min_gross_load" name="min_gross_load" type="number"
@@ -172,9 +187,13 @@
     {% elif analysis %}
         <h2>Selected dataset</h2>
         <p>
-            {{ analysis.summary.records }} records,
-            {{ analysis.summary.facilities }} facilities,
-            {{ analysis.summary.units }} units, and
+            {{ analysis.summary.records }} {{ analysis.source_label }} records,
+            {% if analysis.summary.facilities is not none %}
+                {{ analysis.summary.facilities }} facilities,
+                {{ analysis.summary.units }} units, and
+            {% else %}
+                facility and unit counts are not available for state totals; and
+            {% endif %}
             {{ analysis.summary.years }} reporting years.
         </p>
 
@@ -240,7 +259,7 @@
             CO2, SO2, and NOx intensities and heat rate are undefined when gross
             load is missing or zero. Operating-hours share is operating time
             divided by the calendar year's hours; it is not capacity factor.
-            Year-over-year changes compare a unit with its prior-year record;
+            Year-over-year changes compare each record with its prior-year record;
             percentage change is left undefined when the prior value is zero.
         </p>
 

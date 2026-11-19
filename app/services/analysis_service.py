@@ -5,7 +5,7 @@ import math
 from collections import defaultdict
 
 import numpy as np
-from sqlalchemy import or_
+from sqlalchemy import MetaData, Table, inspect, or_, select
 
 from app import db
 from app.models import AnnualRecord, Facility, Unit
@@ -44,6 +44,16 @@ GROUPS = {
     "fuel": "Primary fuel",
     "unit_type": "Unit type",
 }
+
+STATE_COLUMNS = {
+    "gross_load": ("Gross Load (MWh)",),
+    "steam_load": ("Steam Load (1000 lb)",),
+    "heat_input": ("Heat Input (mmBtu)",),
+    "co2_mass": ("CO2 Mass (short tons)",),
+    "so2_mass": ("SO2 Mass (short tons)",),
+    "nox_mass": ("NOx Mass (short tons)",),
+}
+STATE_TABLE_CANDIDATES = ("calc_data_annual", "calc_data")
 
 CHART_TYPES = {
     "bar": "Bar chart",
@@ -130,7 +140,54 @@ def _analysis_query():
     )
 
 
-def _available_options():
+def _state_table_name():
+    inspector = inspect(db.engine)
+    return next(
+        (
+            table_name for table_name in STATE_TABLE_CANDIDATES
+            if inspector.has_table(table_name)
+        ),
+        None,
+    )
+
+
+def _available_options(source_key="unit_annual"):
+    if source_key == "state_annual":
+        table_name = _state_table_name()
+        if table_name is None:
+            raise ValueError("No annual state-total table is available.")
+        table = Table(
+            table_name,
+            MetaData(),
+            autoload_with=db.engine,
+        )
+        if "State" not in table.c or "Year" not in table.c:
+            raise ValueError(
+                f"The {table_name} table must contain State and Year columns."
+            )
+        return {
+            "states": [
+                row[0] for row in db.session.execute(
+                    select(table.c["State"])
+                    .where(table.c["State"].is_not(None))
+                    .distinct()
+                    .order_by(table.c["State"])
+                ).all()
+            ],
+            "facilities": [],
+            "units": [],
+            "fuels": [],
+            "unit_types": [],
+            "years": [
+                int(row[0]) for row in db.session.execute(
+                    select(table.c["Year"])
+                    .where(table.c["Year"].is_not(None))
+                    .distinct()
+                    .order_by(table.c["Year"])
+                ).all()
+            ],
+        }
+
     query = _analysis_query()
     return {
         "states": [
@@ -181,22 +238,61 @@ def _available_options():
     }
 
 
-def analysis_form_options():
-    return {
-        "options": _available_options(),
-        "variables": [
-            {"key": key, "label": label, "units": units}
-            for key, (label, units) in VARIABLES.items()
-        ],
-        "groups": [
-            {"key": key, "label": label}
-            for key, label in GROUPS.items()
-        ],
-        "chart_types": [
-            {"key": key, "label": label}
-            for key, label in CHART_TYPES.items()
-        ],
-        "available_fields": [
+def analysis_form_options(source_key=None):
+    sources = [{"key": "unit_annual", "label": "Annual unit records"}]
+    state_table_name = _state_table_name()
+    has_state_table = state_table_name is not None
+    if has_state_table:
+        sources.append({
+            "key": "state_annual",
+            "label": "Annual state totals",
+        })
+    source_keys = {source["key"] for source in sources}
+    if source_key not in source_keys:
+        source_key = "state_annual" if has_state_table else "unit_annual"
+
+    if source_key == "state_annual":
+        table = Table(
+            state_table_name,
+            MetaData(),
+            autoload_with=db.engine,
+        )
+        if "State" not in table.c or "Year" not in table.c:
+            raise ValueError(
+                f"The {state_table_name} table must contain State and Year columns."
+            )
+        available_variables = {
+            key for key, candidates in STATE_COLUMNS.items()
+            if any(name in table.c for name in candidates)
+        }
+        for key, numerator in (
+            ("co2_intensity", "co2_mass"),
+            ("so2_intensity", "so2_mass"),
+            ("nox_intensity", "nox_mass"),
+            ("heat_rate", "heat_input"),
+        ):
+            if "gross_load" in available_variables and numerator in available_variables:
+                available_variables.add(key)
+        groups = {"state": GROUPS["state"], "year": GROUPS["year"]}
+        available_fields = [
+            "State",
+            "Reporting year",
+        ] + [
+            VARIABLES[key][0] for key in STATE_COLUMNS
+            if key in available_variables
+        ] + [
+            VARIABLES[key][0] for key in (
+                "co2_intensity",
+                "so2_intensity",
+                "nox_intensity",
+                "heat_rate",
+            )
+            if key in available_variables
+        ]
+    else:
+        available_variables = set(VARIABLES)
+        groups = GROUPS
+        available_fields = [
             "State",
             "Facility name and ID",
             "Generating unit",
@@ -213,7 +309,26 @@ def analysis_form_options():
         ] + [
             label for key, (label, _) in VARIABLES.items()
             if key not in RAW_VARIABLES
+        ]
+
+    return {
+        "options": _available_options(source_key),
+        "sources": sources,
+        "source_key": source_key,
+        "variables": [
+            {"key": key, "label": label, "units": units}
+            for key, (label, units) in VARIABLES.items()
+            if key in available_variables
         ],
+        "groups": [
+            {"key": key, "label": label}
+            for key, label in groups.items()
+        ],
+        "chart_types": [
+            {"key": key, "label": label}
+            for key, label in CHART_TYPES.items()
+        ],
+        "available_fields": available_fields,
     }
 
 
@@ -346,8 +461,22 @@ def _correlation_matrix(rows):
     }
 
 
-def build_analysis(params, options=None):
+def build_analysis(params, options=None, source_key=None):
     """Apply reproducible filters and return summaries and visualization data."""
+    state_table_name = _state_table_name()
+    has_state_table = state_table_name is not None
+    requested_source = source_key or str(
+        params.get("source", "") or ""
+    ).strip()
+    if not requested_source:
+        requested_source = (
+            "state_annual" if has_state_table else "unit_annual"
+        )
+    if requested_source not in {"unit_annual", "state_annual"}:
+        raise ValueError("Choose a supported analysis dataset.")
+    if requested_source == "state_annual" and not has_state_table:
+        raise ValueError("No annual state-total table is available.")
+
     selections = {
         key: str(params.get(key, "") or "").strip()
         for key in FILTER_FIELDS
@@ -357,20 +486,40 @@ def build_analysis(params, options=None):
         "program_code": str(params.get("program_code", "") or "").strip(),
     })
     if options is None:
-        options = _available_options()
+        options = _available_options(requested_source)
+    if requested_source == "state_annual":
+        unsupported_filters = (
+            "facility_id",
+            "unit_id",
+            "fuel",
+            "unit_type",
+            "control",
+            "program_code",
+            "min_operating_time",
+        )
+        if any(
+            str(params.get(key, "") or "").strip()
+            for key in unsupported_filters
+        ):
+            raise ValueError(
+                "Facility, unit, fuel, unit type, control, program, and "
+                "operating-time filters are not available for state totals."
+            )
     if selections["state"] and selections["state"] not in options["states"]:
         raise ValueError("Choose a state available in the annual records.")
-    if selections["facility_id"] and selections["facility_id"] not in {
+    if requested_source == "unit_annual" and selections["facility_id"] and selections["facility_id"] not in {
         item["id"] for item in options["facilities"]
     }:
         raise ValueError("Choose a facility available in the annual records.")
-    if selections["unit_id"] and selections["unit_id"] not in {
+    if requested_source == "unit_annual" and selections["unit_id"] and selections["unit_id"] not in {
         str(item["id"]) for item in options["units"]
     }:
         raise ValueError("Choose a unit available in the annual records.")
-    if selections["fuel"] and selections["fuel"] not in options["fuels"]:
+    if requested_source == "unit_annual" and selections["fuel"] and selections["fuel"] not in options["fuels"]:
         raise ValueError("Choose a fuel available in the annual records.")
     if (
+        requested_source == "unit_annual"
+        and
         selections["unit_type"]
         and selections["unit_type"] not in options["unit_types"]
     ):
@@ -394,11 +543,21 @@ def build_analysis(params, options=None):
     variable = str(params.get("variable", "co2_mass") or "co2_mass").strip()
     if variable not in VARIABLES:
         raise ValueError("Choose a supported analysis variable.")
+    if (
+        requested_source == "state_annual"
+        and variable == "operating_utilization"
+    ):
+        raise ValueError("Operating-hours share is not available for state totals.")
     chart_type = str(params.get("chart", "bar") or "bar").strip()
     if chart_type not in CHART_TYPES:
         raise ValueError("Choose a supported visualization.")
     group_by = str(params.get("group_by", "year") or "").strip()
-    if group_by not in GROUPS and group_by:
+    source_groups = (
+        {"state", "year"}
+        if requested_source == "state_annual"
+        else set(GROUPS)
+    )
+    if group_by not in source_groups and group_by:
         raise ValueError("Choose a supported grouping field.")
     aggregation = str(params.get("aggregation", "mean") or "mean").strip()
     if aggregation not in ("mean", "sum"):
@@ -406,92 +565,223 @@ def build_analysis(params, options=None):
     if aggregation == "sum" and variable not in RAW_VARIABLES:
         raise ValueError("Totals are only available for raw measurements.")
 
-    query_selections = dict(selections)
-    if query_selections["unit_id"]:
-        query_selections["unit_id"] = int(query_selections["unit_id"])
-    base_query = _apply_dimensions(_analysis_query(), query_selections)
-    if year_to is not None:
-        base_query = base_query.filter(AnnualRecord.reporting_year <= year_to)
-
-    baseline_query = base_query
-    if year_from is not None:
-        baseline_query = baseline_query.filter(
-            AnnualRecord.reporting_year >= year_from - 1
-        )
-    baseline_rows = baseline_query.order_by(
-        AnnualRecord.reporting_year.asc()
-    ).all()
-    previous_records = {
-        (unit.id, record.reporting_year): record
-        for record, unit, _ in baseline_rows
-    }
-
-    selected_query = base_query
-    if year_from is not None:
-        selected_query = selected_query.filter(
-            AnnualRecord.reporting_year >= year_from
-        )
-    if min_operating_time is not None:
-        selected_query = selected_query.filter(
-            AnnualRecord.operating_time >= min_operating_time
-        )
-    if min_gross_load is not None:
-        selected_query = selected_query.filter(
-            AnnualRecord.gross_load >= min_gross_load
-        )
-    selected_records = selected_query.order_by(
-        Facility.state,
-        Facility.facility_name,
-        Unit.epa_unit_id,
-        AnnualRecord.reporting_year,
-    ).all()
-
     rows = []
-    for record, unit, facility in selected_records:
-        row = {
-            "state": facility.state,
-            "facility_name": facility.facility_name,
-            "facility_id": facility.epa_facility_id,
-            "unit_label": f"{facility.facility_name} — {unit.epa_unit_id}",
-            "unit_id": unit.epa_unit_id,
-            "unit_type": unit.unit_type,
-            "fuel": unit.primary_fuel,
-            "secondary_fuel": unit.secondary_fuel,
-            "so2_control": record.so2_control,
-            "nox_control": record.nox_control,
-            "pm_control": record.pm_control,
-            "program_code": record.program_code,
-            "year": record.reporting_year,
-            "latitude": _finite_number(facility.latitude),
-            "longitude": _finite_number(facility.longitude),
-            "operating_time": _finite_number(record.operating_time),
-            "gross_load": _finite_number(record.gross_load),
-            "steam_load": _finite_number(record.steam_load),
-            "heat_input": _finite_number(record.heat_input),
-            "co2_mass": _finite_number(record.co2_mass),
-            "so2_mass": _finite_number(record.so2_mass),
-            "nox_mass": _finite_number(record.nox_mass),
-        }
-        for key in VARIABLES:
-            row[key] = _metric_value(record, key)
-        previous = previous_records.get((unit.id, record.reporting_year - 1))
-        previous_value = _metric_value(previous, variable) if previous else None
-        current_value = row[variable]
-        absolute_change = (
-            current_value - previous_value
-            if current_value is not None and previous_value is not None
-            else None
+    if requested_source == "state_annual":
+        table = Table(
+            state_table_name,
+            MetaData(),
+            autoload_with=db.engine,
         )
-        row.update({
-            "previous_year_value": previous_value,
-            "year_over_year_absolute": absolute_change,
-            "year_over_year_percent": (
-                absolute_change / abs(previous_value) * 100
-                if absolute_change is not None and previous_value != 0
+        selected_columns = {
+            key: table.c[column_name]
+            for key, candidates in STATE_COLUMNS.items()
+            for column_name in candidates
+            if column_name in table.c
+        }
+        required_fields = {
+            "co2_intensity": ("gross_load", "co2_mass"),
+            "so2_intensity": ("gross_load", "so2_mass"),
+            "nox_intensity": ("gross_load", "nox_mass"),
+            "heat_rate": ("gross_load", "heat_input"),
+        }.get(variable, (variable,))
+        if any(key not in selected_columns for key in required_fields):
+            raise ValueError(
+                f"The {state_table_name} table does not contain the selected "
+                f"measurement ({VARIABLES[variable][0]})."
+            )
+        gross_column = selected_columns.get("gross_load")
+        if min_gross_load is not None and gross_column is None:
+            raise ValueError(
+                f"The {state_table_name} table does not contain gross load "
+                "for the minimum-load filter."
+            )
+        query = select(table).where(table.c["Year"].is_not(None))
+        if selections["state"]:
+            query = query.where(table.c["State"] == selections["state"])
+        if year_from is not None:
+            query = query.where(table.c["Year"] >= year_from - 1)
+        if year_to is not None:
+            query = query.where(table.c["Year"] <= year_to)
+        state_records = db.session.execute(
+            query.order_by(table.c["State"], table.c["Year"])
+        ).mappings().all()
+        previous_records = {
+            (record["State"], int(record["Year"])): record
+            for record in state_records
+        }
+        for record in state_records:
+            year = int(record["Year"])
+            if year_from is not None and year < year_from:
+                continue
+            values = {
+                key: _finite_number(record[column.name])
+                for key, column in selected_columns.items()
+            }
+            gross_load = values.get("gross_load")
+            if min_gross_load is not None and (
+                gross_load is None or gross_load < min_gross_load
+            ):
+                continue
+            row = {
+                "state": record["State"],
+                "facility_name": None,
+                "facility_id": None,
+                "unit_label": None,
+                "unit_id": None,
+                "unit_type": None,
+                "fuel": None,
+                "secondary_fuel": None,
+                "so2_control": None,
+                "nox_control": None,
+                "pm_control": None,
+                "program_code": None,
+                "year": year,
+                "latitude": None,
+                "longitude": None,
+                "operating_time": None,
+                **{key: values.get(key) for key in RAW_VARIABLES},
+            }
+            for key, numerator_key in (
+                ("co2_intensity", "co2_mass"),
+                ("so2_intensity", "so2_mass"),
+                ("nox_intensity", "nox_mass"),
+                ("heat_rate", "heat_input"),
+            ):
+                numerator = row[numerator_key]
+                row[key] = (
+                    numerator / gross_load
+                    if numerator is not None and gross_load not in (None, 0)
+                    else None
+                )
+            row["operating_utilization"] = None
+            previous = previous_records.get((record["State"], year - 1))
+            previous_value = None
+            if previous is not None:
+                if variable in RAW_VARIABLES:
+                    column = selected_columns.get(variable)
+                    if column is not None:
+                        previous_value = _finite_number(previous[column.name])
+                else:
+                    numerator_key = {
+                        "co2_intensity": "co2_mass",
+                        "so2_intensity": "so2_mass",
+                        "nox_intensity": "nox_mass",
+                        "heat_rate": "heat_input",
+                    }.get(variable)
+                    previous_load = (
+                        _finite_number(previous[gross_column.name])
+                        if gross_column is not None
+                        else None
+                    )
+                    previous_numerator = (
+                        _finite_number(previous[selected_columns[numerator_key].name])
+                        if numerator_key in selected_columns
+                        else None
+                    )
+                    if previous_load not in (None, 0) and previous_numerator is not None:
+                        previous_value = previous_numerator / previous_load
+            current_value = row[variable]
+            change = (
+                current_value - previous_value
+                if current_value is not None and previous_value is not None
                 else None
-            ),
-        })
-        rows.append(row)
+            )
+            row.update({
+                "previous_year_value": previous_value,
+                "year_over_year_absolute": change,
+                "year_over_year_percent": (
+                    change / abs(previous_value) * 100
+                    if change is not None and previous_value != 0
+                    else None
+                ),
+            })
+            rows.append(row)
+    else:
+        query_selections = dict(selections)
+        if query_selections["unit_id"]:
+            query_selections["unit_id"] = int(query_selections["unit_id"])
+        base_query = _apply_dimensions(_analysis_query(), query_selections)
+        if year_to is not None:
+            base_query = base_query.filter(
+                AnnualRecord.reporting_year <= year_to
+            )
+
+        baseline_query = base_query
+        if year_from is not None:
+            baseline_query = baseline_query.filter(
+                AnnualRecord.reporting_year >= year_from - 1
+            )
+        baseline_rows = baseline_query.order_by(
+            AnnualRecord.reporting_year.asc()
+        ).all()
+        previous_records = {
+            (unit.id, record.reporting_year): record
+            for record, unit, _ in baseline_rows
+        }
+        selected_query = base_query
+        if year_from is not None:
+            selected_query = selected_query.filter(
+                AnnualRecord.reporting_year >= year_from
+            )
+        if min_operating_time is not None:
+            selected_query = selected_query.filter(
+                AnnualRecord.operating_time >= min_operating_time
+            )
+        if min_gross_load is not None:
+            selected_query = selected_query.filter(
+                AnnualRecord.gross_load >= min_gross_load
+            )
+        selected_records = selected_query.order_by(
+            Facility.state,
+            Facility.facility_name,
+            Unit.epa_unit_id,
+            AnnualRecord.reporting_year,
+        ).all()
+        for record, unit, facility in selected_records:
+            row = {
+                "state": facility.state,
+                "facility_name": facility.facility_name,
+                "facility_id": facility.epa_facility_id,
+                "unit_label": f"{facility.facility_name} — {unit.epa_unit_id}",
+                "unit_id": unit.epa_unit_id,
+                "unit_type": unit.unit_type,
+                "fuel": unit.primary_fuel,
+                "secondary_fuel": unit.secondary_fuel,
+                "so2_control": record.so2_control,
+                "nox_control": record.nox_control,
+                "pm_control": record.pm_control,
+                "program_code": record.program_code,
+                "year": record.reporting_year,
+                "latitude": _finite_number(facility.latitude),
+                "longitude": _finite_number(facility.longitude),
+                "operating_time": _finite_number(record.operating_time),
+                "gross_load": _finite_number(record.gross_load),
+                "steam_load": _finite_number(record.steam_load),
+                "heat_input": _finite_number(record.heat_input),
+                "co2_mass": _finite_number(record.co2_mass),
+                "so2_mass": _finite_number(record.so2_mass),
+                "nox_mass": _finite_number(record.nox_mass),
+            }
+            for key in VARIABLES:
+                row[key] = _metric_value(record, key)
+            previous = previous_records.get((unit.id, record.reporting_year - 1))
+            previous_value = _metric_value(previous, variable) if previous else None
+            current_value = row[variable]
+            change = (
+                current_value - previous_value
+                if current_value is not None and previous_value is not None
+                else None
+            )
+            row.update({
+                "previous_year_value": previous_value,
+                "year_over_year_absolute": change,
+                "year_over_year_percent": (
+                    change / abs(previous_value) * 100
+                    if change is not None and previous_value != 0
+                    else None
+                ),
+            })
+            rows.append(row)
 
     buckets = defaultdict(list)
     for row in rows:
@@ -525,6 +815,25 @@ def build_analysis(params, options=None):
             key: (row[key] - overall_minimum) / overall_range * 100
             for key in ("minimum", "q1", "median", "q3", "maximum")
         }
+    available_variable_keys = set(VARIABLES)
+    if requested_source == "state_annual":
+        available_variable_keys = {
+            key for key, candidates in STATE_COLUMNS.items()
+            if any(
+                name in table.c
+                for name in candidates
+            )
+        }
+        if "gross_load" in available_variable_keys:
+            for derived_key, numerator_key in (
+                ("co2_intensity", "co2_mass"),
+                ("so2_intensity", "so2_mass"),
+                ("nox_intensity", "nox_mass"),
+                ("heat_rate", "heat_input"),
+            ):
+                if numerator_key in available_variable_keys:
+                    available_variable_keys.add(derived_key)
+
     missing_summary = [
         {
             "key": key,
@@ -534,6 +843,7 @@ def build_analysis(params, options=None):
             "count": len(rows),
         }
         for key in VARIABLES
+        if key in available_variable_keys
     ]
     for key, label in (
         ("state", "State"),
@@ -548,6 +858,8 @@ def build_analysis(params, options=None):
         ("latitude", "Facility latitude"),
         ("longitude", "Facility longitude"),
     ):
+        if requested_source == "state_annual":
+            continue
         missing_summary.append({
             "key": key,
             "label": label,
@@ -625,32 +937,26 @@ def build_analysis(params, options=None):
         "units": len({(row["facility_id"], row["unit_id"]) for row in rows}),
         "years": len({row["year"] for row in rows}),
     }
-    return {
-        "rows": rows,
-        "preview_rows": rows[:200],
-        "summary": summary,
-        "missing_summary": missing_summary,
-        "stats": stats,
-        "rankings": rankings,
-        "chart_data": grouped_values,
-        "histogram": histogram,
-        "scatter": [
-            {
-                "x": row["gross_load"],
-                "y": row[variable],
-                "label": f"{row['facility_name']} ({row['unit_id']}), {row['year']}",
-            }
-            for row in rows
-            if row["gross_load"] is not None and row[variable] is not None
-        ],
-        "correlation": _correlation_matrix(rows),
-        "map_markers": map_markers,
-        "options": options,
-        "variables": [
-            {"key": key, "label": label, "units": units}
-            for key, (label, units) in VARIABLES.items()
-        ],
-        "available_fields": [
+    if requested_source == "state_annual":
+        summary["facilities"] = None
+        summary["units"] = None
+        available_fields = [
+            "State",
+            "Reporting year",
+        ] + [
+            VARIABLES[key][0] for key in STATE_COLUMNS
+            if key in available_variable_keys
+        ] + [
+            VARIABLES[key][0] for key in (
+                "co2_intensity",
+                "so2_intensity",
+                "nox_intensity",
+                "heat_rate",
+            )
+            if key in available_variable_keys
+        ]
+    else:
+        available_fields = [
             "State",
             "Facility name and ID",
             "Generating unit",
@@ -667,8 +973,56 @@ def build_analysis(params, options=None):
         ] + [
             label for key, (label, _) in VARIABLES.items()
             if key not in RAW_VARIABLES
+        ]
+    return {
+        "rows": rows,
+        "preview_rows": rows[:200],
+        "summary": summary,
+        "missing_summary": missing_summary,
+        "stats": stats,
+        "rankings": rankings,
+        "chart_data": grouped_values,
+        "histogram": histogram,
+        "scatter": [
+            {
+                "x": row["gross_load"],
+                "y": row[variable],
+                "label": (
+                    f"{row['facility_name']} ({row['unit_id']}), {row['year']}"
+                    if row["facility_name"] is not None
+                    else f"{row['state']}, {row['year']}"
+                ),
+            }
+            for row in rows
+            if row["gross_load"] is not None and row[variable] is not None
         ],
-        "groups": [{"key": key, "label": label} for key, label in GROUPS.items()],
+        "correlation": _correlation_matrix(rows),
+        "map_markers": map_markers,
+        "options": options,
+        "source_key": requested_source,
+        "source_label": (
+            "Annual state totals"
+            if requested_source == "state_annual"
+            else "Annual unit records"
+        ),
+        "sources": [
+            {"key": "unit_annual", "label": "Annual unit records"}
+        ] + (
+            [{"key": "state_annual", "label": "Annual state totals"}]
+            if has_state_table
+            else []
+        ),
+        "variables": [
+            {"key": key, "label": label, "units": units}
+            for key, (label, units) in VARIABLES.items()
+            if key in available_variable_keys
+        ],
+        "available_fields": available_fields,
+        "groups": [
+            {"key": key, "label": label}
+            for key, label in GROUPS.items()
+            if key in source_groups
+        ],
         "chart_types": [
             {"key": key, "label": label}
             for key, label in CHART_TYPES.items()
@@ -686,6 +1040,7 @@ def build_analysis(params, options=None):
             "group_by": group_by,
             "aggregation": aggregation,
             "percentiles": selected_percentiles,
+            "source": requested_source,
         },
         "percentile_values": [f"{value:g}" for value in percentiles],
         "units": VARIABLES[variable][1],
