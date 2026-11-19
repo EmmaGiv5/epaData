@@ -310,376 +310,189 @@ def calculate():
 
 @main_bp.route("/factored-calculations", methods=["GET", "POST"])
 def factored_calculations():
+
+
     states = []
     years = []
-    facilities = []
-    units = []
-    fuels = []
-    calc_state = ""
-    calc_year_from = ""
-    calc_year_to = ""
-    calc_facility_id = ""
-    calc_unit_id = ""
-    calc_fuel = ""
-    calc_group_by = "state"
+
+
     calc_results = []
-    calc_error = None
+    calc_state = ""
+    calc_year = ""
     calc_submitted = request.method == "POST"
-    has_unit_records = False
+    calc_error = None
+
 
     try:
-        joined_records = db.session.query(
-            AnnualRecord,
-            Unit,
-            Facility,
-        ).join(
-            Unit,
-            AnnualRecord.unit_id == Unit.id,
-        ).join(
-            Facility,
-            Unit.facility_id == Facility.id,
+        annual_data = Table(
+            "calc_data_annual",
+            MetaData(),
+            autoload_with=db.engine,
         )
-        has_unit_records = joined_records.first() is not None
-        fallback_table = None
-        if has_unit_records:
-            states = [
-                row[0] for row in joined_records.with_entities(
-                    Facility.state
-                ).filter(
-                    Facility.state.isnot(None)
-                ).distinct().order_by(Facility.state).all()
-            ]
-            years = [
-                row[0] for row in joined_records.with_entities(
-                    AnnualRecord.reporting_year
-                ).distinct().order_by(AnnualRecord.reporting_year.desc()).all()
-            ]
-            facilities = [
-                {"id": row[0], "name": row[1], "state": row[2]}
-                for row in joined_records.with_entities(
-                    Facility.epa_facility_id,
-                    Facility.facility_name,
-                    Facility.state,
-                ).distinct().order_by(Facility.facility_name).all()
-            ]
-            units = [
-                {
-                    "id": row[0],
-                    "label": f"{row[1]} — {row[2]}",
-                    "facility_id": row[3],
-                }
-                for row in joined_records.with_entities(
-                    Unit.id,
-                    Facility.facility_name,
-                    Unit.epa_unit_id,
-                    Facility.epa_facility_id,
-                ).distinct().order_by(
-                    Facility.facility_name,
-                    Unit.epa_unit_id,
-                ).all()
-            ]
-            fuels = [
-                row[0] for row in joined_records.with_entities(
-                    Unit.primary_fuel
-                ).filter(
-                    Unit.primary_fuel.isnot(None)
-                ).distinct().order_by(Unit.primary_fuel).all()
-            ]
-        else:
-            fallback_table = Table(
-                "calc_data_annual",
-                MetaData(),
-                autoload_with=db.engine,
-            )
-            required_columns = (
-                "State",
-                "Year",
-                *TRACI_EMISSIONS_COLUMNS.values(),
-            )
-            missing_columns = [
-                name for name in required_columns if name not in fallback_table.c
-            ]
-            if missing_columns:
-                raise ValueError(
-                    "The calc_data_annual table is missing required columns: "
-                    + ", ".join(missing_columns)
-                )
-            states = [
-                row[0] for row in db.session.execute(
-                    select(fallback_table.c["State"])
-                    .where(fallback_table.c["State"].is_not(None))
-                    .distinct()
-                    .order_by(fallback_table.c["State"])
-                ).all()
-            ]
-            years = [
-                int(row[0]) for row in db.session.execute(
-                    select(fallback_table.c["Year"])
-                    .where(fallback_table.c["Year"].is_not(None))
-                    .distinct()
-                    .order_by(fallback_table.c["Year"].desc())
-                ).all()
-            ]
+
+
+        states = [
+            row[0]
+            for row in db.session.execute(
+                select(annual_data.c["State"])
+                .where(annual_data.c["State"].is_not(None))
+                .distinct()
+                .order_by(annual_data.c["State"])
+            ).all()
+        ]
+
+
+        years = [
+            int(row[0])
+            for row in db.session.execute(
+                select(annual_data.c["Year"])
+                .where(annual_data.c["Year"].is_not(None))
+                .distinct()
+                .order_by(annual_data.c["Year"])
+            ).all()
+        ]
+
 
         if request.method == "POST":
-            calc_state = request.form.get("state", "").strip()
-            calc_year_from = request.form.get(
-                "year_from",
-                request.form.get("year", ""),
-            ).strip()
-            calc_year_to = request.form.get(
-                "year_to",
-                request.form.get("year", ""),
-            ).strip()
-            calc_facility_id = request.form.get("facility_id", "").strip()
-            calc_unit_id = request.form.get("unit_id", "").strip()
-            calc_fuel = request.form.get("fuel", "").strip()
-            calc_group_by = request.form.get("group_by", "state").strip()
 
-            if calc_state and calc_state not in states:
-                raise ValueError("Choose a state available in the annual data.")
-            if not has_unit_records and (
-                calc_facility_id or calc_unit_id or calc_fuel
-            ):
-                raise ValueError(
-                    "Facility, unit, and fuel filters require normalized "
-                    "annual unit records."
-                )
-            if calc_facility_id and calc_facility_id not in {
-                item["id"] for item in facilities
-            }:
-                raise ValueError("Choose a facility available in the annual records.")
-            if calc_unit_id and calc_unit_id not in {
-                str(item["id"]) for item in units
-            }:
-                raise ValueError("Choose a unit available in the annual records.")
-            if calc_fuel and calc_fuel not in fuels:
-                raise ValueError("Choose a fuel available in the annual records.")
-            allowed_groups = (
-                ("state", "facility", "unit", "fuel")
-                if has_unit_records
-                else ("state",)
-            )
-            if calc_group_by not in allowed_groups:
-                raise ValueError("Choose a supported impact grouping.")
-            if calc_year_from and (
-                not calc_year_from.isdigit()
-                or int(calc_year_from) not in years
-            ):
-                raise ValueError("Choose a starting year available in the annual records.")
-            if calc_year_to and (
-                not calc_year_to.isdigit()
-                or int(calc_year_to) not in years
-            ):
-                raise ValueError("Choose an ending year available in the annual records.")
-            if (
-                calc_year_from
-                and calc_year_to
-                and int(calc_year_from) > int(calc_year_to)
-            ):
-                raise ValueError("The starting year cannot exceed the ending year.")
+
+            calc_state = request.form.get("state", "").strip()
+            calc_year = request.form.get("year", "").strip()
+
 
             factors_by_category = _read_traci_factors()
-            groups = {}
-            if has_unit_records:
-                query = joined_records
-                if calc_state:
-                    query = query.filter(Facility.state == calc_state)
-                if calc_facility_id:
-                    query = query.filter(
-                        Facility.epa_facility_id == calc_facility_id
-                    )
-                if calc_unit_id:
-                    query = query.filter(Unit.id == int(calc_unit_id))
-                if calc_fuel:
-                    query = query.filter(Unit.primary_fuel == calc_fuel)
-                if calc_year_from:
-                    query = query.filter(
-                        AnnualRecord.reporting_year >= int(calc_year_from)
-                    )
-                if calc_year_to:
-                    query = query.filter(
-                        AnnualRecord.reporting_year <= int(calc_year_to)
-                    )
 
-                for record, unit, facility in query.all():
-                    if calc_group_by == "state":
-                        label = facility.state or "(Missing state)"
-                    elif calc_group_by == "facility":
-                        label = (
-                            f"{facility.facility_name} "
-                            f"({facility.epa_facility_id})"
-                        )
-                    elif calc_group_by == "unit":
-                        label = (
-                            f"{facility.facility_name} "
-                            f"({facility.epa_facility_id}) "
-                            f"— Unit {unit.epa_unit_id}"
-                        )
-                    else:
-                        label = unit.primary_fuel or "(Missing fuel)"
 
-                    group_key = (label, record.reporting_year)
-                    bucket = groups.setdefault(group_key, {
-                        "states": set(),
-                        "emissions": {},
-                        "gross_load": 0.0,
-                        "has_gross_load": False,
-                    })
-                    bucket["states"].add(facility.state or "")
-                    for substance, column_name in TRACI_EMISSIONS_COLUMNS.items():
-                        record_attribute = {
-                            "CO2 Mass (short tons)": "co2_mass",
-                            "SO2 Mass (short tons)": "so2_mass",
-                            "NOx Mass (short tons)": "nox_mass",
-                        }[column_name]
-                        mass = getattr(record, record_attribute)
-                        if mass is not None:
-                            mass = float(mass)
-                            if not math.isfinite(mass):
-                                continue
-                            bucket["emissions"][substance] = (
-                                bucket["emissions"].get(substance, 0.0)
-                                + mass
-                            )
-                    if record.gross_load is not None:
-                        gross_load = float(record.gross_load)
-                        if math.isfinite(gross_load):
-                            bucket["gross_load"] += gross_load
-                            bucket["has_gross_load"] = True
-            else:
-                selections = [
-                    fallback_table.c["State"].label("state"),
-                    fallback_table.c["Year"].label("year"),
-                    *[
-                        func.sum(fallback_table.c[column]).label(substance)
-                        for substance, column in TRACI_EMISSIONS_COLUMNS.items()
-                    ],
-                ]
-                has_gross_column = "Gross Load (MWh)" in fallback_table.c
-                if has_gross_column:
-                    selections.append(
-                        func.sum(
-                            fallback_table.c["Gross Load (MWh)"]
-                        ).label("gross_load")
-                    )
-                fallback_query = select(*selections).group_by(
-                    fallback_table.c["State"],
-                    fallback_table.c["Year"],
-                ).where(fallback_table.c["Year"].is_not(None))
-                if calc_state:
-                    fallback_query = fallback_query.where(
-                        fallback_table.c["State"] == calc_state
-                    )
-                if calc_year_from:
-                    fallback_query = fallback_query.where(
-                        fallback_table.c["Year"] >= int(calc_year_from)
-                    )
-                if calc_year_to:
-                    fallback_query = fallback_query.where(
-                        fallback_table.c["Year"] <= int(calc_year_to)
-                    )
-                for emission_group in db.session.execute(
-                    fallback_query
-                ).mappings():
-                    label = emission_group["state"] or "(Missing state)"
-                    group_key = (label, int(emission_group["year"]))
-                    bucket = groups.setdefault(group_key, {
-                        "states": {emission_group["state"] or ""},
-                        "emissions": {},
-                        "gross_load": 0.0,
-                        "has_gross_load": False,
-                    })
-                    for substance in TRACI_EMISSIONS_COLUMNS:
-                        mass = emission_group[substance]
-                        if mass is not None and math.isfinite(float(mass)):
-                            bucket["emissions"][substance] = float(mass)
-                    if (
-                        has_gross_column
-                        and emission_group["gross_load"] is not None
-                        and math.isfinite(float(emission_group["gross_load"]))
-                    ):
-                        bucket["gross_load"] = float(
-                            emission_group["gross_load"]
-                        )
-                        bucket["has_gross_load"] = True
+            query = select(
+                annual_data.c["State"].label("state"),
+                annual_data.c["Year"].label("year"),
+                *[
+                    func.sum(
+                        annual_data.c[column]
+                    ).label(substance)
+                    for substance, column in TRACI_EMISSIONS_COLUMNS.items()
+                ],
+            ).group_by(
+                annual_data.c["State"],
+                annual_data.c["Year"]
+            )
 
-            for (group_label, reporting_year), bucket in sorted(
-                groups.items(),
-                key=lambda item: (item[0][0].casefold(), item[0][1]),
-            ):
+
+            if calc_state:
+                query = query.where(
+                    annual_data.c["State"] == calc_state
+                )
+
+
+            if calc_year:
+                query = query.where(
+                    annual_data.c["Year"] == int(calc_year)
+                )
+
+
+            emissions_groups = db.session.execute(
+                query
+            ).mappings().all()
+
+
+            for group in emissions_groups:
+
+
                 for category, category_factors in factors_by_category.items():
+
+
                     impact_value = 0.0
-                    factor_details = []
+                    contributing_substances = []
+
+
                     for substance, factor in category_factors.items():
-                        mass = bucket["emissions"].get(substance)
+
+
+                        mass = group[substance]
+
+
                         if mass is None:
                             continue
-                        impact_value += (
-                            mass * SHORT_TON_TO_KILOGRAMS * factor
-                        )
-                        factor_details.append({
-                            "substance": substance,
-                            "mass_short_tons": mass,
-                            "factor": factor,
-                        })
-                    if not factor_details:
+
+
+                        mass_kg = float(mass) * SHORT_TON_TO_KILOGRAMS
+
+
+                        impact_value += mass_kg * factor
+
+
+                        contributing_substances.append(substance)
+
+
+                    if not contributing_substances:
                         continue
 
-                    impact_unit = _traci_impact_unit(category)
+
+                    unit_start = category.find("(")
+                    unit_end = category.rfind(")")
+
+
+                    impact_unit = (
+                        category[unit_start + 1:unit_end]
+                        if unit_start >= 0 and unit_end > unit_start
+                        else ""
+                    )
+
+
                     calc_results.append({
-                        "state": (
-                            next(iter(bucket["states"]))
-                            if len(bucket["states"]) == 1
-                            else "Multiple"
-                        ),
-                        "group": group_label,
-                        "year": reporting_year,
+                        "state": group["state"],
+                        "year": group["year"],
                         "category": category.split(" (", 1)[0],
                         "value": impact_value,
-                        "intensity": (
-                            impact_value / bucket["gross_load"]
-                            if bucket["has_gross_load"]
-                            and bucket["gross_load"] > 0
-                            else None
-                        ),
                         "unit": impact_unit,
                         "substances": ", ".join(
-                            item["substance"] for item in factor_details
+                            contributing_substances
                         ),
-                        "factors": factor_details,
-                        "version": "TRACI 2.2",
                     })
 
-    except SQLAlchemyError:
-        current_app.logger.exception("Unable to load TRACI calculation data")
-        calc_error = (
-            "Could not load annual CAMPD records. Verify the database "
-            "connection and that annual records are available."
+
+    except (SQLAlchemyError, OSError, ValueError) as exc:
+
+
+        current_app.logger.exception(
+            "Factored calculation failed"
         )
-    except (OSError, ValueError, TypeError) as exc:
-        current_app.logger.exception("Unable to calculate TRACI impacts")
+
+
         calc_error = str(exc)
+
 
     return render_template(
         "factored_calculations.html",
         states=states,
         years=years,
-        facilities=facilities,
-        units=units,
-        fuels=fuels,
         calc_state=calc_state,
-        calc_year_from=calc_year_from,
-        calc_year_to=calc_year_to,
-        calc_facility_id=calc_facility_id,
-        calc_unit_id=calc_unit_id,
-        calc_fuel=calc_fuel,
-        calc_group_by=calc_group_by,
+        calc_year=calc_year,
         calc_results=calc_results,
-        calc_error=calc_error,
         calc_submitted=calc_submitted,
-        has_unit_records=has_unit_records,
+        calc_error=calc_error,
     )
+
+
+@main_bp.route("/check-calc-columns")
+def check_calc_columns():
+
+
+    annual_data = Table(
+        "calc_data_annual",
+        MetaData(),
+        autoload_with=db.engine
+    )
+
+
+    columns = list(annual_data.c.keys())
+
+
+    return {
+        "table": "calc_data_annual",
+        "columns": columns
+    }
+
 
 
 @main_bp.route("/descriptive-stats")
