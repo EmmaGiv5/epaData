@@ -156,9 +156,13 @@ zero. These are
 potential-impact indicators, not predictions of local exposure, illness, or
 proven environmental damage.
 
-The analysis builder and facility/unit TRACI calculations require populated
-`annual_records`, `units`, and `facilities` tables. State-level TRACI
-calculations can use `calc_data_annual`. Live CAMPD API responses are not
+The analysis builder can use populated `annual_records`, `units`, and
+`facilities` for unit-level analysis, or `calc_data_annual` (or `calc_data`)
+for state-level analysis. The state-level source lists all states present in
+that table and supports state/year grouping and available measurements; it
+cannot provide facility, unit, fuel, control, program, or operating-time filters.
+Facility/unit TRACI calculations require the normalized tables; state-level
+TRACI calculations can use `calc_data_annual`. Live CAMPD API responses are not
 automatically saved to those tables.
 
 ## Where the data comes from

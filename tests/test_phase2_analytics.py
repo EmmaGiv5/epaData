@@ -13,7 +13,10 @@ from app.routes.main import (
     _traci_impact_unit,
     main_bp,
 )
-from app.services.analysis_service import build_analysis
+from app.services.analysis_service import (
+    analysis_form_options,
+    build_analysis,
+)
 
 
 class PhaseTwoAnalyticsTests(unittest.TestCase):
@@ -51,6 +54,7 @@ class PhaseTwoAnalyticsTests(unittest.TestCase):
         self.app_context.push()
         db.drop_all()
         db.session.execute(text("DROP TABLE IF EXISTS calc_data_annual"))
+        db.session.execute(text("DROP TABLE IF EXISTS calc_data"))
         db.create_all()
 
         dataset = Dataset(dataset_name="analysis fixture", data_source="test")
@@ -177,6 +181,56 @@ class PhaseTwoAnalyticsTests(unittest.TestCase):
         self.assertIsNone(result["rows"][0]["co2_intensity"])
         self.assertEqual(result["stats"][0]["count"], 0)
         self.assertEqual(result["stats"][0]["missing_count"], 1)
+
+    def test_analysis_builder_uses_all_states_from_annual_state_table(self):
+        db.session.execute(text(
+            'CREATE TABLE calc_data ('
+            '"State" TEXT, "Year" INTEGER, '
+            '"Gross Load (MWh)" REAL, "Steam Load (1000 lb)" REAL, '
+            '"SO2 Mass (short tons)" REAL, "CO2 Mass (short tons)" REAL, '
+            '"NOx Mass (short tons)" REAL, "Heat Input (mmBtu)" REAL)'
+        ))
+        states = ("AL", "GA", "KY", "MS", "TN")
+        for index, state in enumerate(states, start=1):
+            db.session.execute(text(
+                'INSERT INTO calc_data '
+                '("State", "Year", "Gross Load (MWh)", '
+                '"Steam Load (1000 lb)", "SO2 Mass (short tons)", '
+                '"CO2 Mass (short tons)", "NOx Mass (short tons)", '
+                '"Heat Input (mmBtu)") '
+                'VALUES (:state, 2024, :load, 10, 1, :co2, 2, 15)'
+            ), {
+                "state": state,
+                "load": index * 100,
+                "co2": index * 20,
+            })
+        db.session.commit()
+
+        options = analysis_form_options()
+        result = build_analysis({
+            "source": "state_annual",
+            "year_from": "2024",
+            "year_to": "2024",
+            "variable": "co2_intensity",
+            "group_by": "state",
+        }, options["options"], source_key="state_annual")
+
+        self.assertEqual(options["source_key"], "state_annual")
+        self.assertEqual(options["options"]["states"], list(states))
+        self.assertEqual(result["summary"]["records"], 5)
+        self.assertEqual(result["summary"]["facilities"], None)
+        self.assertEqual(result["summary"]["units"], None)
+        self.assertEqual({row["state"] for row in result["rows"]}, set(states))
+        self.assertEqual(len(result["stats"]), 5)
+        self.assertAlmostEqual(result["rows"][0]["co2_intensity"], 0.2)
+
+        response = self.app.test_client().get(
+            "/analysis-builder?source=state_annual&year_from=2024"
+            "&year_to=2024&variable=co2_intensity&group_by=state"
+        )
+        self.assertEqual(response.status_code, 200)
+        for state in states:
+            self.assertIn(state, response.get_data(as_text=True))
 
     def test_builder_page_renders_summary_statistics_and_selected_chart(self):
         response = self.app.test_client().get(

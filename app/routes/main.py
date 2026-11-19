@@ -208,14 +208,23 @@ def analysis_builder():
             "unit_types": [],
             "years": [],
         },
+        "sources": [{"key": "unit_annual", "label": "Annual unit records"}],
+        "source_key": "unit_annual",
         "variables": [],
         "groups": [],
         "chart_types": [],
         "available_fields": [],
     }
     try:
-        form_options = analysis_form_options()
-        analysis = build_analysis(request.args, form_options["options"])
+        requested_source = request.args.get("source", "").strip() or None
+        form_options = analysis_form_options(requested_source)
+        if requested_source and requested_source != form_options["source_key"]:
+            raise ValueError("The selected annual dataset is not available.")
+        analysis = build_analysis(
+            request.args,
+            form_options["options"],
+            source_key=form_options["source_key"],
+        )
     except (ValueError, TypeError) as exc:
         analysis_error = str(exc)
     except SQLAlchemyError:
