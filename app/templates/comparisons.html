@@ -189,6 +189,7 @@ Comparisons | epaData
 </section>
 
 {% if summaries %}
+{%include "_model_panel.html" %}
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         const comparisonRows = {{ summaries | tojson }};

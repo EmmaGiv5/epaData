@@ -1,6 +1,6 @@
 from pprint import pprint
 
-from services.campd_service import fetch_dataset
+from app.services.campd_service import fetch_dataset
 
 
 def test_hourly_facility():
